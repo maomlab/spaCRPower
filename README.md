@@ -14,4 +14,7 @@ The analysis a Bayesian multiple-linear-regression with a horseshoe prior to est
     install.packages("remotes"
     remotes::install_github("maomlab/spaCRPower")
 
-Then look in the vignettes
+Then look in the vignettes.
+
+
+<img width="1147" alt="image" src="https://github.com/user-attachments/assets/226cf378-267c-432f-b1b1-4a37062a9209" />
