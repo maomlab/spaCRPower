@@ -110,3 +110,24 @@ n = dplyr::n(),
 shape1 = class_neg_mu * ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1),
 shape2 = (1 - class_neg_mu) * ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1)))))
 }
+\examples{
+\dontrun{
+  scores <- spaCRPower::scan_parameters(
+    n_genes_per_library = 200,
+    gene_abundance_factor_mu = 1,
+    gene_abundance_factor_var = .01,
+    gene_hit_rate = 0.05,
+    n_wells_per_screen = seq(30, 200, length.out = 35),
+    well_abundance_factor_mu = 1,
+    well_abundance_factor_var = .01,
+    n_genes_per_well = c(1, 3, 10, 30),
+    n_cells_per_well_mu = 850,
+    n_cells_per_well_var = 1000,
+    class_pos_mu = 0.99,
+    class_pos_var = 0.0001,
+    class_neg_mu = 0.01,
+    class_neg_var = 0.0001)
+}
+
+
+}

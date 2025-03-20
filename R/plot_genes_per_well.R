@@ -9,8 +9,8 @@
 #'
 #' @returns `ggplot2::ggplot` object
 #'
-#' @usage
-#'
+#' @examples
+#' \dontrun{
 #'    data <- simulate_data(...)
 #'    plot <- plot_genes_per_well(data)
 #'    ggplot2::ggsave(
@@ -18,6 +18,7 @@
 #'      plot = plot,
 #'      width = 5,
 #'      height = 4)
+#' }
 #'
 #' @export
 plot_genes_per_well <- function(data) {

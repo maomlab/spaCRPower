@@ -19,6 +19,7 @@ scan_parameters(
   class_pos_var,
   class_neg_mu,
   class_neg_var,
+  progress_file = NULL,
   verbose = FALSE,
   ...
 )
@@ -57,4 +58,27 @@ scan_parameters(
 \description{
 For each combination of given parameters, generate a simulated dataset
 fit a model to it and estimate the predictive accuracy.
+}
+\examples{
+\dontrun{
+  scores <- spaCRPower::scan_parameters(
+    n_genes_per_library = 200,
+    gene_abundance_factor_mu = 1,
+    gene_abundance_factor_var = .01,
+    gene_hit_rate = 0.05,
+    n_wells_per_screen = seq(30, 200, length.out = 35),
+    well_abundance_factor_mu = 1,
+    well_abundance_factor_var = .01,
+    n_genes_per_well = c(1, 3, 10, 30),
+    n_cells_per_well_mu = 850,
+    n_cells_per_well_var = 1000,
+    class_pos_mu = 0.99,
+    class_pos_var = 0.0001,
+    class_neg_mu = 0.01,
+    class_neg_var = 0.0001,
+    progress_file = "parameter_scan.tsv",
+    verbose = TRUE,
+    refresh = 0)
+}
+
 }

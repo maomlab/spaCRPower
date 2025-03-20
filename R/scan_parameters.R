@@ -22,6 +22,28 @@
 #' @param verbose = FALSE
 #'
 #'
+#' @examples
+#' \dontrun{
+#'   scores <- spaCRPower::scan_parameters(
+#'     n_genes_per_library = 200,
+#'     gene_abundance_factor_mu = 1,
+#'     gene_abundance_factor_var = .01,
+#'     gene_hit_rate = 0.05,
+#'     n_wells_per_screen = seq(30, 200, length.out = 35),
+#'     well_abundance_factor_mu = 1,
+#'     well_abundance_factor_var = .01,
+#'     n_genes_per_well = c(1, 3, 10, 30),
+#'     n_cells_per_well_mu = 850,
+#'     n_cells_per_well_var = 1000,
+#'     class_pos_mu = 0.99,
+#'     class_pos_var = 0.0001,
+#'     class_neg_mu = 0.01,
+#'     class_neg_var = 0.0001,
+#'     progress_file = "parameter_scan.tsv",
+#'     verbose = TRUE,
+#'     refresh = 0)
+#' }
+#'
 #' @export
 scan_parameters <- function(
     n_genes_per_library,
@@ -38,6 +60,7 @@ scan_parameters <- function(
     class_pos_var,
     class_neg_mu,
     class_neg_var,
+    progress_file = NULL,
     verbose = FALSE,
     ...) {
 
@@ -63,6 +86,16 @@ scan_parameters <- function(
     cat(
       "Generating and estimating ", nrow(parameter_sets), " ",
       "different datasets\n", sep = "")
+
+    if (!is.null(progress_file)){
+      if (!file.exists(progress_file)) {
+        cat("Writing progress to ", progress_file, "\n", sep = "")
+      } else {
+        cat(
+          "Warning: requesting writing to progress file that alread exists: ",
+          progress_file, "\n", sep = "")
+      }
+    }
   }
 
   model <- NULL
@@ -109,7 +142,7 @@ scan_parameters <- function(
 
       if (is.null(model)) {
         if (verbose) {
-          cat("Compiling model for the first time time...\n")
+          cat("Compiling model for the first time...\n")
         }
         model <<- compile_model(model_data)
       }
@@ -125,9 +158,23 @@ scan_parameters <- function(
           "\n", sep = "")
       }
 
+      model_evaluation <- data.frame(params) |>
+        dplyr::bind_cols(model_evaluation)
+
+      if (!is.null(progress_file)) {
+        if (!file.exists(progress_file)) {
+          model_evaluation |>
+            readr::write_tsv(file = progress_file)
+        } else {
+          model_evaluation |>
+            readr::write_tsv(
+              file = progress_file,
+              append = TRUE)
+        }
+      }
+
       model_evaluation |>
         dplyr::mutate(
-          parameters = list(params),
           data = list(data),
           model = list(model_fit))
     }) |>

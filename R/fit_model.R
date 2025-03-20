@@ -11,6 +11,18 @@
 #'   where the types are `factor`, `numeric`, `matrix` and the matrix has
 #'   `1` row and `n_gene` columns.
 #'
+#' @examples
+#' \dontrun{
+#'   data <- simulate_screen(...)
+#'   model_data <- prepare_model_data(data)
+#'   model <- compile_model(model_data)
+#'   model_fit <- fit_model(model_data, model)
+#'   model_estimate <- gather_model_estimate(model_fit)
+#'   model_evaluation <- evaluate_model_fit(data, model_estimate)
+#' }
+#'
+#'
+#'
 #' @export
 prepare_model_data <- function(data) {
   data_model <- data |>
@@ -35,6 +47,17 @@ prepare_model_data <- function(data) {
 #'
 #' @return `brms::brmsfit` object
 #'
+#'
+#' @examples
+#' \dontrun{
+#'.   data <- simulate_screen(...)
+#'.   model_data <- prepare_model_data(data)
+#'.   model <- compile_model(model_data)
+#'.   model_fit <- fit_model(model_data, model)
+#'.   model_estimate <- gather_model_estimate(model_fit)
+#'.   model_evaluation <- evaluate_model_fit(data, model_estimate)
+#' }
+#'
 #' @export
 compile_model <- function(
     model_data,
@@ -44,7 +67,7 @@ compile_model <- function(
     formula = Npositive ~ 1 + log10counts,
     data = model_data,
     family = poisson,
-    prior = brms::prior(horseshoe(df = 3), class = "b"),
+    prior = brms::prior(horseshoe(df = 10), class = "b"),
     iter = 6000,
     chains = 0,
     control = list(
@@ -71,6 +94,18 @@ compile_model <- function(
 #'
 #' @returns `brms::brmsfit` object
 #'
+#' @examples
+#' \dontrun{
+#'   data <- simulate_screen(...)
+#'   model_data <- prepare_model_data(data)
+#'   model <- compile_model(model_data)
+#'   model_fit <- fit_model(model_data, model)
+#'   model_estimate <- gather_model_estimate(model_fit)
+#'   model_evaluation <- evaluate_model_fit(data, model_estimate)
+#' }
+#'
+#'
+#'
 #' @export
 fit_model <- function(
     model_data,
@@ -79,8 +114,8 @@ fit_model <- function(
     iter = 8000,
     cores = 4,
     control = list(
-      adapt_delta = 0.99,
       max_treedepth = 12),
+    backend = "cmdstanr",
     ...) {
 
   model |>
@@ -90,6 +125,7 @@ fit_model <- function(
       iter = iter,
       cores = cores,
       control = control,
+      backend = backend,
       recompile = FALSE,
       ...)
 }
@@ -102,6 +138,19 @@ fit_model <- function(
 #' @param model `brms::brmsfit` fit using `fit_model`.
 #'
 #' @returns `data.frame` with columns
+#'
+#' @examples
+#' \dontrun{
+#'   data <- simulate_screen(...)
+#'   model_data <- prepare_model_data(data)
+#'   model <- compile_model(model_data)
+#'   model_fit <- fit_model(model_data, model)
+#'   model_estimate <- gather_model_estimate(model_fit)
+#'   model_evaluation <- evaluate_model_fit(data, model_estimate)
+#' }
+#'
+#'
+#' @export
 gather_model_estimate <- function(model_fit) {
   model_fit |>
     posterior::summarize_draws() |>
@@ -123,6 +172,18 @@ gather_model_estimate <- function(model_fit) {
 #'   having columns \[`gene`, `mean`\]
 #'
 #' @return `data.frame` with columns \[`model_ap`, `model_auroc`\]
+#'
+#'
+#' @examples
+#' \dontrun{
+#'   data <- simulate_screen(...)
+#'   model_data <- prepare_model_data(data)
+#'   model <- compile_model(model_data)
+#'   model_fit <- fit_model(model_data, model)
+#'   model_estimate <- gather_model_estimate(model_fit)
+#'   model_evaluation <- evaluate_model_fit(data, model_estimate)
+#' }
+#'
 #'
 #' @export
 evaluate_model_fit <- function(
@@ -147,8 +208,6 @@ evaluate_model_fit <- function(
   tibble::tibble(
     model_ap = model_ap$.estimate[1],
     model_auroc = model_auroc$.estimate[1])
-
 }
-
 
 

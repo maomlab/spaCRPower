@@ -20,3 +20,15 @@ having columns [\code{gene}, \code{mean}]}
 Evaluate the average precision and area under the ROC curve as quality
 metrics for predicting the hit-status of each gene.
 }
+\examples{
+\dontrun{
+  data <- simulate_screen(...)
+  model_data <- prepare_model_data(data)
+  model <- compile_model(model_data)
+  model_fit <- fit_model(model_data, model)
+  model_estimate <- gather_model_estimate(model_fit)
+  model_evaluation <- evaluate_model_fit(data, model_estimate)
+}
+
+
+}

@@ -9,7 +9,8 @@
 #'
 #' @returns `ggplot2::ggplot` object
 #'
-#' @usage
+#' @examples
+#' \dontrun{
 #'    data <- simulate_data(...)
 #'    plot <- plot_well_gene_heatmap(data)
 #'    ggplot2::ggsave(
@@ -17,6 +18,8 @@
 #'      plot = plot,
 #'      width = 5,
 #'      height = 4)
+#' }
+#'
 #' @export
 plot_well_gene_heatmap <- function(data) {
 

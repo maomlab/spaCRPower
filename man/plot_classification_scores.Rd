@@ -4,16 +4,12 @@
 \alias{plot_classification_scores}
 \title{Plot Classification Scores}
 \usage{
-plot <- plot_classification_scores(
-     class_pos_mu = 0.99,
-     class_pos_var = 0.0001,
-     class_neg_mu = 0.01,
-     class_neg_var = 0.0001)
-   ggplot2::ggsave(
-     filename = "classification_scores.png",
-     plot = plot,
-     width = 5,
-     height = 4)
+plot_classification_scores(
+  class_pos_mu,
+  class_pos_var,
+  class_neg_mu,
+  class_neg_var
+)
 }
 \arguments{
 \item{class_pos_mu}{numeric mean classification score of the negative class}
@@ -31,4 +27,19 @@ scored objects, generate a plot of the distribution of scores for each class
 \details{
 The functional for each class is a beta distribution, where the parameters
 are given in the mean and variance form.
+}
+\examples{
+\dontrun{
+   plot <- plot_classification_scores(
+     class_pos_mu = 0.99,
+     class_pos_var = 0.0001,
+     class_neg_mu = 0.01,
+     class_neg_var = 0.0001)
+   ggplot2::ggsave(
+     filename = "classification_scores.png",
+     plot = plot,
+     width = 5,
+     height = 4)
+}
+
 }

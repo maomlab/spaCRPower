@@ -18,3 +18,16 @@ where the types are \code{factor}, \code{numeric}, \code{matrix} and the matrix 
 Given a dataset, compute for each (well, gene) pair, the number of positive
 and log10 total cell count.
 }
+\examples{
+\dontrun{
+  data <- simulate_screen(...)
+  model_data <- prepare_model_data(data)
+  model <- compile_model(model_data)
+  model_fit <- fit_model(model_data, model)
+  model_estimate <- gather_model_estimate(model_fit)
+  model_evaluation <- evaluate_model_fit(data, model_estimate)
+}
+
+
+
+}

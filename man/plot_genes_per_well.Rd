@@ -4,13 +4,7 @@
 \alias{plot_genes_per_well}
 \title{Plot genes per well histogram}
 \usage{
-data <- simulate_data(...)
-   plot <- plot_genes_per_well(data)
-   ggplot2::ggsave(
-     filename = "genes_per_well.png",
-     plot = plot,
-     width = 5,
-     height = 4)
+plot_genes_per_well(data)
 }
 \arguments{
 \item{data}{data.frame with columns [\code{well}, \code{gene}] and each row is a well
@@ -22,4 +16,16 @@ well x gene pair}
 \description{
 From the given dataset, plot the distribution of genes per well
 as a histogram
+}
+\examples{
+\dontrun{
+   data <- simulate_data(...)
+   plot <- plot_genes_per_well(data)
+   ggplot2::ggsave(
+     filename = "genes_per_well.png",
+     plot = plot,
+     width = 5,
+     height = 4)
+}
+
 }

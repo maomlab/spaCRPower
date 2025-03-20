@@ -9,8 +9,8 @@
 #'
 #' @returns `ggplot2::ggplot` object
 #'
-#' @usage
-#'
+#' @examples
+#' \dontrun{
 #'    data <- simulate_data(...)
 #'    plot <- plot_positivity_rate_by_well(data)
 #'    ggplot2::ggsave(
@@ -18,6 +18,8 @@
 #'      plot = plot,
 #'      width = 5,
 #'      height = 4)
+#' }
+#'
 #' @export
 plot_positivity_rate_by_well <- function(data) {
 

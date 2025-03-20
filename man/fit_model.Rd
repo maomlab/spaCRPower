@@ -10,7 +10,8 @@ fit_model(
   chains = 4,
   iter = 8000,
   cores = 4,
-  control = list(adapt_delta = 0.99, max_treedepth = 12),
+  control = list(max_treedepth = 12),
+  backend = "cmdstanr",
   ...
 )
 }
@@ -37,4 +38,17 @@ Given a model prepared by \code{compile_model} fit it with the given data
 \details{
 Note by separating out the compilation step it is one model can be
 fit multiple times.
+}
+\examples{
+\dontrun{
+  data <- simulate_screen(...)
+  model_data <- prepare_model_data(data)
+  model <- compile_model(model_data)
+  model_fit <- fit_model(model_data, model)
+  model_estimate <- gather_model_estimate(model_fit)
+  model_evaluation <- evaluate_model_fit(data, model_estimate)
+}
+
+
+
 }

@@ -4,13 +4,7 @@
 \alias{plot_positivity_rate_by_well}
 \title{Plot positivity rate by well}
 \usage{
-data <- simulate_data(...)
-   plot <- plot_positivity_rate_by_well(data)
-   ggplot2::ggsave(
-     filename = "positivity_rate_by_well.png",
-     plot = plot,
-     width = 5,
-     height = 4)
+plot_positivity_rate_by_well(data)
 }
 \arguments{
 \item{data}{data.frame with columns [\code{well}, \code{count}, \code{positive}]}
@@ -21,4 +15,16 @@ data <- simulate_data(...)
 \description{
 Given a dataset generate a scatter plot comparing number of positive
 cells by the number of total cells for each well.
+}
+\examples{
+\dontrun{
+   data <- simulate_data(...)
+   plot <- plot_positivity_rate_by_well(data)
+   ggplot2::ggsave(
+     filename = "positivity_rate_by_well.png",
+     plot = plot,
+     width = 5,
+     height = 4)
+}
+
 }
