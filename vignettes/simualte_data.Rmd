@@ -1,0 +1,51 @@
+---
+title: "Simulate a Screen"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulate a Screen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(spaCRPower)
+library(patchwork)
+```
+
+
+```{r simulate-data}
+data <- spaCRPower::simulate_screen(
+  n_genes_per_library = 200,
+  gene_abundance_factor_mu = 1,
+  gene_abundance_factor_var = .01,
+  gene_hit_rate = 0.05,
+  n_wells_per_screen = 80,
+  well_abundance_factor_mu = 1,
+  well_abundance_factor_var = .01,
+  n_genes_per_well = 10,
+  n_cells_per_well_mu = 850,
+  n_cells_per_well_var = 1000,
+  class_pos_mu = 0.99,
+  class_pos_var = 0.0001,
+  class_neg_mu = 0.01,
+  class_neg_var = 0.0001)
+
+```
+```{r make-plots}
+plot1 <- plot_genes_per_well(data)
+plot2 <- plot_wells_per_gene(data)
+plot3 <- plot_positivity_rate_by_well(data)
+plot4 <- plot_well_gene_heatmap(data)
+
+
+(plot1 + plot2) / (plot3 + plot4)
+
+```
+
