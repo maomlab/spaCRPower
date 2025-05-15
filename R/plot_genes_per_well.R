@@ -4,8 +4,8 @@
 #' From the given dataset, plot the distribution of genes per well
 #' as a histogram
 #'
-#' @param data data.frame with columns \[`well`, `gene`\] and each row is a well
-#'   well x gene pair
+#' @param data data.frame with columns \[`well`, `gene`, `count`\] and each
+#'   row is a well x gene pair
 #'
 #' @returns `ggplot2::ggplot` object
 #'
@@ -34,6 +34,11 @@ plot_genes_per_well <- function(data) {
       mean_n_genes = mean(n_genes),
       .groups = "drop")
 
+  max_height <- plot_data |>
+    dplyr::count(n_genes) |>
+    purrr::pluck("n") |>
+    max()
+
   ggplot2::ggplot() +
     ggplot2::theme_bw() +
     ggplot2::geom_bar(
@@ -49,7 +54,7 @@ plot_genes_per_well <- function(data) {
       mapping = ggplot2::aes(
         x = mean_n_genes,
         label = round(mean_n_genes),
-        y = 50),
+        y = 1.1 * max_height),
       direction = "x",
       nudge_x = 1) +
     ggplot2::scale_y_continuous("Well Count") +

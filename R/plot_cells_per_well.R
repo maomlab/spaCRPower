@@ -1,42 +1,41 @@
 
-#' Plot wells per gene histogram
+#' Plot cells per well histogram
 #'
-#' From the given dataset, plot the distribution of wells per gene
+#' From the given dataset, plot the distribution of cells per well
 #' as a histogram
 #'
-#' @param data data.frame with columns \[`well`, `gene`\] and each row is a well
-#'   well x gene pair
+#' @param data data.frame with columns \[`well`, count`\] and each row
+#'   is a well x gene pair
 #'
 #' @returns `ggplot2::ggplot` object
-#'
 #'
 #' @examples
 #' \dontrun{
 #'    data <- simulate_data(...)
-#'    plot <- plot_wells_per_gene(data)
+#'    plot <- plot_cells_per_well(data)
 #'    ggplot2::ggsave(
-#'      filename = "wells_per_gene.png",
+#'      filename = "cells_per_well.png",
 #'      plot = plot,
 #'      width = 5,
 #'      height = 4)
 #' }
 #'
 #' @export
-plot_wells_per_gene <- function(data) {
+plot_cells_per_well <- function(data) {
 
   plot_data <- data |>
-    dplyr::group_by(gene) |>
+    dplyr::group_by(well) |>
     dplyr::summarize(
-      n_wells = sum(count > 0),
+      n_cells = sum(count),
       .groups = "drop")
 
   plot_data_mean <- plot_data |>
     dplyr::summarize(
-      mean_n_wells = mean(n_wells),
+      mean_n_cells = mean(n_cells),
       .groups = "drop")
 
   max_height <- plot_data |>
-    dplyr::count(n_wells) |>
+    dplyr::count(n_cells) |>
     purrr::pluck("n") |>
     max()
 
@@ -45,19 +44,19 @@ plot_wells_per_gene <- function(data) {
     ggplot2::geom_bar(
       data = plot_data,
       mapping = ggplot2::aes(
-        x = n_wells)) +
+        x = n_cells)) +
     ggplot2::geom_vline(
       data = plot_data_mean,
       mapping = ggplot2::aes(
-        xintercept = mean_n_wells)) +
+        xintercept = mean_n_cells)) +
     ggrepel::geom_text_repel(
       data = plot_data_mean,
       mapping = ggplot2::aes(
-        x = mean_n_wells,
-        label = round(mean_n_wells),
+        x = mean_n_cells,
+        label = round(mean_n_cells),
         y = 1.1 * max_height),
       direction = "x",
-      nudge_x = 1) +
-    ggplot2::scale_y_continuous("Gene Count") +
-    ggplot2::scale_x_continuous("Wells per Gene Count")
+      nudge_x = .1) +
+    ggplot2::scale_y_continuous("Well Count") +
+    ggplot2::scale_x_continuous("Cells per Well Count")
 }

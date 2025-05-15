@@ -1,7 +1,4 @@
 
-
-
-
 #' Generate well x gene level data for a pooled screen
 #'
 #' Given assay parameters run the following simulation
@@ -104,6 +101,10 @@ simulate_screen <- function(
     n_genes_per_well,
     n_cells_per_well_mu,
     n_cells_per_well_var,
+    pcr_mu,
+    pcr_var,
+    pcr_noise_mu,
+    pcr_noise_var,
     class_pos_mu,
     class_pos_var,
     class_neg_mu,
@@ -125,6 +126,21 @@ simulate_screen <- function(
   assertthat::assert_that(
     n_genes_per_well > 0,
     msg = "Target number of genes per well is positive")
+
+  screen_covariates <- data.frame(
+    pcr_mu = pcr_mu,
+    pcr_var = pcr_var,
+    pcr_noise_mu = pcr_noise_mu,
+    pcr_noise_var = pcr_noise_var) |>
+    dplyr::mutate(
+      pcr_factor = rgamma(
+        n = 1,
+        shape = pcr_mu^2 / pcr_var,
+        rate = pcr_mu / pcr_var),
+      pcr_noise_factor = rgamma(
+        n = 1,
+        shape = pcr_noise_mu^2 / pcr_noise_var,
+        rate = pcr_noise_mu / pcr_noise_var))
 
 
   gene_covariates <- data.frame(
@@ -167,6 +183,7 @@ simulate_screen <- function(
       class_pos_var = class_pos_var,
       class_neg_mu = class_neg_mu,
       class_neg_var = class_neg_var) |>
+    dplyr::cross_join(screen_covariates) |>
     dplyr::left_join(gene_covariates, by = "gene") |>
     dplyr::left_join(well_covariates, by = "well") |>
     dplyr::mutate(
@@ -184,7 +201,8 @@ simulate_screen <- function(
           size = (n_cells_per_gene_per_well_mu)^2 /
             (n_cells_per_gene_per_well_var - n_cells_per_gene_per_well_mu),
           prob = n_cells_per_gene_per_well_mu / n_cells_per_gene_per_well_var),
-
+      reads = rbinom(n = dplyr::n(), size = count * pcr_factor) +
+        rbinom(n = dplyr::n(), size = n_cells_per_well_mu * pcr_factor),
       positive = rbinom(
         n = dplyr::n(),
         size = count,
@@ -198,4 +216,15 @@ simulate_screen <- function(
             n = dplyr::n(),
             shape1 = class_neg_mu * ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1),
             shape2 = (1 - class_neg_mu) * ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1)))))
+
+  # add well_gene_fraction as this is comparable
+  well_gene <- well_gene |>
+    dplyr::left_join(
+      well_gene |>
+        dplyr::group_by(well) |>
+        dplyr::reframe(
+          gene,
+          well_gene_fraction = count / sum(count)),
+      by = c("well", "gene"))
+
 }

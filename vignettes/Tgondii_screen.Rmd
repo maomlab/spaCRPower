@@ -1,0 +1,412 @@
+---
+title: "T. Gondii Screen"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{T. Gondii Screen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(spaCRPower)
+```
+
+
+
+```{r load-data}
+##########################################
+# first version of the data Einar shared #
+##########################################
+regression_data <- readr::read_csv(
+  "~/Downloads/regression_data.csv",
+  show_col_types = FALSE) |>
+  tidyr::separate_wider_delim(
+    cols = prc,
+    names = c("plate", "row", "column"),
+    delim = "_") |>
+  dplyr::mutate(
+    plate = plate |> stringr::str_replace("plate", "") |> as.integer(),
+    row = row |> stringr::str_replace("r", "") |> as.integer(),
+    column = column |> stringr::str_replace("c", "") |> as.integer()) |>
+  dplyr::arrange(plate, row, column) |>
+  dplyr::mutate(
+    well = dplyr::row_number(),
+    .before = 1)
+sequencing_data <- readr::read_csv(
+  "~/Downloads/sequencing_mixed_condition_column_3.csv",
+  show_col_types = FALSE) |>
+  dplyr::select(-`...1`) |>
+  dplyr::mutate(
+    plate = plate |> stringr::str_replace("plate", "") |> as.integer(),
+    row = row |> stringr::str_replace("r", "") |> as.integer(),
+    column = column |> stringr::str_replace("c", "") |> as.integer(),
+    .before = 1) |>
+  dplyr::arrange(plate, row, column) |>
+  dplyr::mutate(
+    well = dplyr::row_number(),
+    .before = 1)
+```
+
+```{r summarize-data}
+
+plot <- regression_data |>
+  dplyr::select(
+    well,
+    count = cell_count_maxvit) |>
+  spaCRPower::plot_cells_per_well()
+
+plot
+```
+
+```{r model-cell-count}
+
+model_data <- regression_data |>
+  dplyr::select(
+    count = cell_count_maxvit)
+
+model <- brms::brm(
+  formula = count ~ 1,
+  family = Gamma(link = "log"),
+  data = model_data,
+  backend = "cmdstanr",
+  chains = 0)
+
+model_fit <- model |>
+   stats::update(
+      newdata = model_data,
+      chains = 4,
+      iter = 4000,
+      cores = 4,
+      control = list(
+        max_treedepth = 12),
+      backend = "cmdstanr",
+      recompile = FALSE)
+
+model_estimate <-   model_fit |>
+    posterior::summarize_draws() |>
+    dplyr::filter(
+      variable %in% c("Intercept", "shape"))
+
+
+epred_draws <- model_fit |>
+  tidybayes::add_epred_draws(
+    newdata = model_data,
+    ndraws = 50)
+pp_data <- model_fit |>
+  tidybayes::add_predicted_draws(
+    newdata = model_data,
+    ndraws = 200) |>
+  ggdist::median_qi(.width = c(0.5, 0.8, 0.9))
+
+spaCRPower::plot_cells_per_well(
+  data = epred_draws |>
+    dplyr::group_by()
+)
+
+
+ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::theme(legend.position = "bottom") +
+
+  ggplot2::geom_(
+    data = pp_data,
+    mapping = ggplot2::aes(
+      x = .data[[treatment_variable]],
+      y = .data[[response_variable]],
+      group = .data[[".draw"]]),
+    linewidth = 0.4,
+    alpha = 0.2,
+    color = "blueviolet")
+
+
+ggplot2::ggplot()
+
+
+```
+
+
+```{r load-data}
+
+########################################### 
+# second version of the data Einar shared #
+###########################################
+
+# columns: grna, plate, grna_well_count, gene_well_count
+grna_well <- readr::read_csv(
+  file = paste0(
+    system.file("extdata", package = "spaCRPower"), "/",
+    "Tgondii_screen/grna_well.csv"),
+  show_col_types = FALSE) |>
+  dplyr::mutate(
+    plate = plate |> stringr::str_replace("plate", "") |> as.integer())
+
+# columns: well, plate, row, column, positive, negative, cell_count
+maxvit_well_scores <- readr::read_csv(
+  file = paste0(
+    system.file("extdata", package = "spaCRPower"), "/",
+    "Tgondii_screen/maxvit_well_scores"),
+  show_col_types = FALSE) |>
+  dplyr::select(-`...1`) |>
+  dplyr::rename(
+    maxvit_positive = positive_per_well,
+    maxvit_negative = negative_per_well,
+    well_cell_count = cell_per_well) |>
+  tidyr::separate_wider_delim(
+    cols = prc,
+    names = c("plate", "row", "column"),
+    delim = "_") |>
+  dplyr::mutate(
+    plate = plate |> stringr::str_replace("pplate", "") |> as.integer(),
+    row = row |> stringr::str_replace("r", "") |> as.integer(),
+    column = column |> stringr::str_replace("c", "") |> as.integer()) |>
+  dplyr::arrange(plate, row, column)
+
+# columns: prc, grna, fraction, gene, pred, cell_count, log_pred
+regression_maxvit <- readr::read_csv(
+  file = paste0(
+    system.file("extdata", package = "spaCRPower"), "/",
+    "Tgondii_screen/regression_data_MaxViT.csv"),
+  show_col_types = FALSE)
+
+read_plate <- function(plate_index) {
+  plate1_unique_combinations <- readr::read_csv(
+    file = paste0(
+      system.file("extdata", package = "spaCRPower"), "/",
+      "Tgondii_screen/plate", plate_index, "_unique_combinations.csv"),
+    show_col_types = FALSE) |>
+    dplyr::transmute(
+      plate = plate_index,
+      row = row_name |> stringr::str_replace("r", "") |> as.integer(),
+      column = column_name |> stringr::str_replace("c", "") |> as.integer(),
+      gene = grna_name |> stringr::str_extract("TGGT1_[^_]+"),
+      grna = grna_name,
+      read_count = count)
+}
+
+data_grna <- dplyr::bind_rows(
+  read_plate(1),
+  read_plate(2),
+  read_plate(3),
+  read_plate(4))
+
+data_grna <- data_grna |>
+  dplyr::left_join(
+    data_grna |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column),
+    by = c("plate", "row", "column"))
+
+data_gene <- data_grna |>
+  dplyr::transmute(
+    plate, row, column,
+    gene = grna |> stringr::str_extract("TGGT1_[^_]+"),
+    read_count) |>
+  dplyr::group_by(plate, row, column, gene) |>
+  dplyr::summarize(
+    read_count = sum(read_count),
+    .groups = "drop")
+
+data_gene <- data_gene |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::group_by(plate, row, column) |>
+      dplyr::reframe(
+        gene,
+        well_gene_fraction = read_count / sum(read_count)),
+    by = c("plate", "row", "column", "gene"))
+
+
+data_gene <- data_gene |>
+  dplyr::left_join(
+    maxvit_well_scores,
+    by = c("plate", "row", "column"))
+
+plot <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = data_gene |> dplyr::mutate(plate = factor(plate)),
+    mapping = ggplot2::aes(
+      x = log10(read_count + 1),
+      y = log10(..count.. + 1)),
+    bins = 120) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Read Count",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000, 100000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k", "100k")) +
+  ggplot2::scale_y_continuous(
+    "Gene x Well Count",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k")) +
+  ggplot2::facet_wrap(
+    facets = dplyr::vars(plate))
+
+ggplot2::ggsave(
+  filename = "Tgondii_screen_well_read_fraction_histogram_stacked_by_plate.pdf",
+  plot = plot,
+  width = 6,
+  height = 5)
+
+
+plot_data <- data_gene |>
+  dplyr::mutate(plate = factor(plate)) |>
+  dplyr::group_by(plate) |>
+  dplyr::do({
+    z <- .
+    cat("Computing histogram for plate ", z$plate[1], "\n", sep = "")
+    histogram <- graphics::hist(
+      x = log10(z$read_count + 1),
+      breaks = 120,
+      plot = FALSE)
+    data.frame(
+      plate = z$plate[1],
+      x = histogram$mids,
+      y = log10(histogram$counts + 1))
+  }) |>
+  dplyr::ungroup() |>
+  dplyr::filter( y > 0)
+
+plot <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_line(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = x,
+      y = y,
+      color = plate,
+      group = plate)) +
+  ggplot2::scale_color_discrete("Plate") +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Read Count",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000, 100000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k", "100k")) +
+  ggplot2::scale_y_continuous(
+    "Gene Well Count",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k"))
+
+ggplot2::ggsave(
+  filename = "Tgondii_screen_well_read_fraction_histogram_stacked_by_plate_line.pdf",
+  plot = plot,
+  width = 6,
+  height = 5)
+
+
+
+
+
+
+plot <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = data_gene |> dplyr::mutate(plate = factor(plate)),
+    mapping = ggplot2::aes(
+      x = log10(well_gene_fraction),
+      fill = plate,
+      group = plate),
+    bins = 50) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Fraction",
+    breaks = log10(c(0.001, .1, 10) / 100),
+    labels = c("0.001%", "0.1%", "10%")) +
+  ggplot2::scale_fill_discrete("Plate") +
+  ggplot2::facet_grid(
+    rows = dplyr::vars(row),
+    cols = dplyr::vars(column))
+
+plot <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = data_gene |> dplyr::mutate(plate = factor(plate)),
+    mapping = ggplot2::aes(
+      x = log10(read_count),
+      fill = plate,
+      group = plate),
+    bins = 50) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Read Count",
+    breaks = log10(c(0,10, 1000, 100000)),
+    labels = c("0", "10", "1k", "100k")) +
+    ggplot2::scale_fill_discrete("Plate") +
+  ggplot2::facet_grid(
+    rows = dplyr::vars(row),
+    cols = dplyr::vars(column))
+
+#  ggplot2::scale_x_continuous(
+#    "Gene in Well Fraction",
+#    breaks = log10(c(0.001, .1, 10) / 100),
+#    labels = c("0.001%", "0.1%", "10%")) +
+
+
+ggplot2::ggsave(
+  filename = "Tgondii_screen_well_read_fraction_histogram.pdf",
+  plot = plot,
+  width = 22,
+  height = 10)
+
+ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    data = data_gene,
+    mapping = ggplot2::aes(
+      x = log10(read_count),
+      y = log10(well_gene_fraction)),
+    alpha = 0.1,
+    size = 0.5,
+    shape = 16) +
+  ggplot2::scale_y_continuous(
+    "Gene in Well Fraction",
+    breaks = log10(c(0.001, .003, .01, .03, .1, .3, 1, 3, 10, 30, 100) / 100),
+    labels = c("0.001%", "0.003%", "0.01%", "0.03%", "0.1%", "0.3%", "1%", "3%", "10%", "30%", "100%")) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Read Count",
+    breaks = log10(c(0, 1, 3, 10, 30, 100, 300, 1000, 3000, 10000, 30000, 100000, 300000)),
+    labels = c("0", "1", "3", "10", "30", "100", "300", "1k", "3k", "10k", "30k", "100k", "300k"))
+
+
+```
+
+```{r summarize-screen}
+data_gene |>
+  spaCRPower::plot_wells_per_gene()
+
+data_gene |>
+  spaCRPower::plot_genes_per_well()
+
+data_gene |>
+  spaCRPower::plot_cells_per_well()
+
+```
+```{r read-count-vs-cell-count}
+
+data_well <- data_gene |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    read_count = sum(count)) |>
+  dplyr::left_join(
+    maxvit_well_scores |>
+      dplyr::select(
+        well,
+        cell_count = count,
+        positive),
+    by = "well")
+
+
+ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    data = data_well,
+    mapping = ggplot2::aes(
+      x = read_count,
+      y = cell_count)) +
+  ggplot2::scale_x_log10("Read Count") +
+  ggplot2::scale_y_log10("Cell Count")
+
+```
+
