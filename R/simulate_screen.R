@@ -3,17 +3,19 @@
 #'
 #' Given assay parameters run the following simulation
 #'    1) Select genotypes from the library as hits/non-hits
-#'    2) For each well and genotype pair
-#'        - sample the count of cells with that genotype that are in that well
-#'        - and among those cells the number are classified as positive.
+#'    2) For each well and genotype pair sample the count of cells with that
+#'       genotype that are in that well
+#'    3) For each cell, based on its genotype, determine if it is classified
+#'       as positive or negative
+#'    4) For each well, determine the read counts of each geneotype
 #'
 #' The count for genoptype i in well j is sampled from the following binomial
 #' distribution
 #'
-#'      count_ij ~ binomial(
-#'          size = gene_well_dispersion,                           # check this
-#'          prob = (n_cells_per_well / n_genes_per_library) *
-#'               gene_abundance_factor * well_abundance_factor)
+#'    gene_well_count_ij ~ binomial(
+#'        size = gene_well_dispersion,                           # check this
+#'        prob = (n_cells_per_well / n_genes_per_library) *
+#'             gene_abundance_factor * well_abundance_factor)
 #'
 #' where the gene and well abundance factors control scale expected abundance
 #' based on the geneotype or well level effects, the gene abundance factor for
@@ -101,10 +103,7 @@ simulate_screen <- function(
     n_genes_per_well,
     n_cells_per_well_mu,
     n_cells_per_well_var,
-    pcr_mu,
-    pcr_var,
-    pcr_noise_mu,
-    pcr_noise_var,
+    n_reads_total,
     class_pos_mu,
     class_pos_var,
     class_neg_mu,
@@ -126,22 +125,6 @@ simulate_screen <- function(
   assertthat::assert_that(
     n_genes_per_well > 0,
     msg = "Target number of genes per well is positive")
-
-  screen_covariates <- data.frame(
-    pcr_mu = pcr_mu,
-    pcr_var = pcr_var,
-    pcr_noise_mu = pcr_noise_mu,
-    pcr_noise_var = pcr_noise_var) |>
-    dplyr::mutate(
-      pcr_factor = rgamma(
-        n = 1,
-        shape = pcr_mu^2 / pcr_var,
-        rate = pcr_mu / pcr_var),
-      pcr_noise_factor = rgamma(
-        n = 1,
-        shape = pcr_noise_mu^2 / pcr_noise_var,
-        rate = pcr_noise_mu / pcr_noise_var))
-
 
   gene_covariates <- data.frame(
     gene = 1:n_genes_per_library,
@@ -179,11 +162,11 @@ simulate_screen <- function(
       n_genes_per_well = n_genes_per_well,
       n_cells_per_well_mu = n_cells_per_well_mu,
       n_cells_per_well_var = n_cells_per_well_var,
+      n_reads_total = n_reads_total,
       class_pos_mu = class_pos_mu,
       class_pos_var = class_pos_var,
       class_neg_mu = class_neg_mu,
       class_neg_var = class_neg_var) |>
-    dplyr::cross_join(screen_covariates) |>
     dplyr::left_join(gene_covariates, by = "gene") |>
     dplyr::left_join(well_covariates, by = "well") |>
     dplyr::mutate(
@@ -195,17 +178,19 @@ simulate_screen <- function(
         n_cells_per_well_mu / n_genes_per_well,
       n_cells_per_gene_per_well_var = well_abundance_factor *
         n_cells_per_well_var / n_genes_per_well,
-      count = gene_in_well *
+      n_cells_per_gene_per_well = gene_in_well *
         rnbinom(
           n = dplyr::n(),
           size = (n_cells_per_gene_per_well_mu)^2 /
             (n_cells_per_gene_per_well_var - n_cells_per_gene_per_well_mu),
           prob = n_cells_per_gene_per_well_mu / n_cells_per_gene_per_well_var),
-      reads = rbinom(n = dplyr::n(), size = count * pcr_factor) +
-        rbinom(n = dplyr::n(), size = n_cells_per_well_mu * pcr_factor),
+      n_reads_per_genes_per_well= rmultinom(
+        n = 1,
+        size = n_reads_total,
+        prob = n_cells_per_gene_per_well),
       positive = rbinom(
         n = dplyr::n(),
-        size = count,
+        size = n_cells_per_gene_per_well,
         prob = ifelse(
           hit,
           rbeta(
@@ -217,14 +202,5 @@ simulate_screen <- function(
             shape1 = class_neg_mu * ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1),
             shape2 = (1 - class_neg_mu) * ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1)))))
 
-  # add well_gene_fraction as this is comparable
-  well_gene <- well_gene |>
-    dplyr::left_join(
-      well_gene |>
-        dplyr::group_by(well) |>
-        dplyr::reframe(
-          gene,
-          well_gene_fraction = count / sum(count)),
-      by = c("well", "gene"))
 
 }

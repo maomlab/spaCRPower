@@ -27,7 +27,7 @@ plot_wells_per_gene <- function(data) {
   plot_data <- data |>
     dplyr::group_by(gene) |>
     dplyr::summarize(
-      n_wells = sum(count > 0),
+      n_wells = sum(n_cells_per_gene_per_well > 0),
       .groups = "drop")
 
   plot_data_mean <- plot_data |>

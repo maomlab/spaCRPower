@@ -32,16 +32,16 @@ data <- spaCRPower::simulate_screen(
   n_genes_per_well = 10,
   n_cells_per_well_mu = 850,
   n_cells_per_well_var = 1000,
-  pcr_mu = 1000,
-  pcr_var = 2000,
-  pcr_noise_mu = 20,
-  pcr_noise_var = 40,
+  n_reads_total = 100000,
   class_pos_mu = 0.99,
   class_pos_var = 0.0001,
   class_neg_mu = 0.01,
   class_neg_var = 0.0001)
 
 ```
+
+
+
 ```{r make-plots}
 plot1 <- plot_genes_per_well(data)
 plot2 <- plot_wells_per_gene(data)

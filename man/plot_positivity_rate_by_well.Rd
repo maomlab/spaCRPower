@@ -7,7 +7,8 @@
 plot_positivity_rate_by_well(data)
 }
 \arguments{
-\item{data}{data.frame with columns [\code{well}, \code{count}, \code{positive}]}
+\item{data}{data.frame with columns [\code{well}, \code{n_cells_per_gene_per_well},
+\code{positive}]}
 }
 \value{
 \code{ggplot2::ggplot} object

@@ -4,8 +4,8 @@
 #' From the given dataset, plot the distribution of cells per well
 #' as a histogram
 #'
-#' @param data data.frame with columns \[`well`, count`\] and each row
-#'   is a well x gene pair
+#' @param data data.frame with columns \[`well`,
+#'   `n_cells_per_gene_per_well`\] and each row is a well x gene pair
 #'
 #' @returns `ggplot2::ggplot` object
 #'
@@ -26,7 +26,7 @@ plot_cells_per_well <- function(data) {
   plot_data <- data |>
     dplyr::group_by(well) |>
     dplyr::summarize(
-      n_cells = sum(count),
+      n_cells = sum(n_cells_per_gene_per_well),
       .groups = "drop")
 
   plot_data_mean <- plot_data |>

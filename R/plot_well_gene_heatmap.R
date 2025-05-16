@@ -5,7 +5,8 @@
 #' (row) by gene (column) pair. The values are the `log10(count + 1)` on
 #' a scale from blue to yellow.
 #'
-#' @param data data.frame with columns \[`gene`, `well`, `count`\]
+#' @param data data.frame with columns \[`gene`, `well`,
+#'   `n_cells_per_gene_per_well`\]
 #'
 #' @returns `ggplot2::ggplot` object
 #'
@@ -24,20 +25,20 @@
 plot_well_gene_heatmap <- function(data) {
 
   data |>
-    dplyr::select(gene, well, count) |>
+    dplyr::select(gene, well, n_cells_per_gene_per_well) |>
     tidyr::pivot_wider(
       id_cols = well,
       names_from = "gene",
-      values_from = "count")
+      values_from = "n_cells_per_gene_per_well")
 
   ggplot2::ggplot(data = data) +
     ggplot2::theme_bw() +
-    ggplot2::ggtitle("Cell Count for Gene by Well")
+    ggplot2::ggtitle("Cell Count for Gene by Well") +
     ggplot2::geom_tile(
       mapping = ggplot2::aes(
         x = gene,
         y = well,
-        fill = log10( count + 1))) +
+        fill = log10( n_cells_per_gene_per_well + 1))) +
     viridis::scale_fill_viridis(
       "Log10(Cell Count + 1)",
       option = "cividis") +

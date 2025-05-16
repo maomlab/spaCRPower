@@ -7,7 +7,8 @@
 prepare_model_data(data)
 }
 \arguments{
-\item{data}{data.frame with columns [\code{well}, \code{gene}, \code{positive}, \code{count}]}
+\item{data}{data.frame with columns [\code{well}, \code{gene}, \code{positive},
+\code{n_cells_per_gene_per_well}]}
 }
 \value{
 \code{tibble::tibble} with columns [\code{well}, \code{Npositive}, \code{log10counts}]

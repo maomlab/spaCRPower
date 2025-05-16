@@ -4,7 +4,8 @@
 #' Given a dataset, compute for each (well, gene) pair, the number of positive
 #' and log10 total cell count.
 #'
-#' @param data data.frame with columns \[`well`, `gene`, `positive`, `count`\]
+#' @param data data.frame with columns \[`well`, `gene`, `positive`,
+#'   `n_cells_per_gene_per_well`\]
 #'
 #'
 #' @return `tibble::tibble` with columns \[`well`, `Npositive`, `log10counts`\]
@@ -32,7 +33,9 @@ prepare_model_data <- function(data) {
       tibble::tibble(
         well = as.factor(well_data$well[1]),
         Npositive = sum(well_data$positive),
-        log10counts = matrix(log10(well_data$count + .0001), nrow = 1))
+        log10counts = matrix(
+          log10(well_data$n_cells_per_gene_per_well + .0001),
+          nrow = 1))
     }) |>
     dplyr::ungroup()
 }

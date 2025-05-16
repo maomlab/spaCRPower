@@ -7,8 +7,8 @@
 plot_cells_per_well(data)
 }
 \arguments{
-\item{data}{data.frame with columns [\code{well}, \code{gene}, \code{count}] and each row
-is a well x gene pair}
+\item{data}{data.frame with columns [\code{well},
+\code{n_cells_per_gene_per_well}] and each row is a well x gene pair}
 }
 \value{
 \code{ggplot2::ggplot} object

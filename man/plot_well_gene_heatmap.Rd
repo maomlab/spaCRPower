@@ -7,7 +7,8 @@
 plot_well_gene_heatmap(data)
 }
 \arguments{
-\item{data}{data.frame with columns [\code{gene}, \code{well}, \code{count}]}
+\item{data}{data.frame with columns [\code{gene}, \code{well},
+\code{n_cells_per_gene_per_well}]}
 }
 \value{
 \code{ggplot2::ggplot} object

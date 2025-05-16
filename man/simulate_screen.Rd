@@ -15,6 +15,7 @@ simulate_screen(
   n_genes_per_well,
   n_cells_per_well_mu,
   n_cells_per_well_var,
+  n_reads_total,
   class_pos_mu,
   class_pos_var,
   class_neg_mu,
@@ -54,22 +55,21 @@ simulate_screen(
 Given assay parameters run the following simulation
 \enumerate{
 \item Select genotypes from the library as hits/non-hits
-\item For each well and genotype pair
-\itemize{
-\item sample the count of cells with that genotype that are in that well
-\item and among those cells the number are classified as positive.
-}
+\item For each well and genotype pair sample the count of cells with that
+genotype that are in that well
+\item For each cell, based on its genotype, determine if it is classified
+as positive or negative
+\item For each well, determine the read counts of each geneotype
 }
 }
 \details{
 The count for genoptype i in well j is sampled from the following binomial
 distribution
 
-\if{html}{\out{<div class="sourceCode">}}\preformatted{ count_ij ~ binomial(
-     size = gene_well_dispersion,                           # check this
-     prob = (n_cells_per_well / n_genes_per_library) *
-          gene_abundance_factor * well_abundance_factor)
-}\if{html}{\out{</div>}}
+gene_well_count_ij ~ binomial(
+size = gene_well_dispersion,                           # check this
+prob = (n_cells_per_well / n_genes_per_library) *
+gene_abundance_factor * well_abundance_factor)
 
 where the gene and well abundance factors control scale expected abundance
 based on the geneotype or well level effects, the gene abundance factor for

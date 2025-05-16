@@ -15,6 +15,7 @@ scan_parameters(
   n_genes_per_well,
   n_cells_per_well_mu,
   n_cells_per_well_var,
+  n_reads_total,
   class_pos_mu,
   class_pos_var,
   class_neg_mu,
