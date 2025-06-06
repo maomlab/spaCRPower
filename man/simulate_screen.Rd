@@ -5,29 +5,29 @@
 \title{Generate well x gene level data for a pooled screen}
 \usage{
 simulate_screen(
-  n_genes_per_library,
-  gene_abundance_factor_mu,
-  gene_abundance_factor_var,
+  n_genes_in_library,
+  gene_abundance_alpha,
   gene_hit_rate,
   n_wells_per_screen,
   well_abundance_factor_mu,
   well_abundance_factor_var,
-  n_genes_per_well,
-  n_cells_per_well_mu,
-  n_cells_per_well_var,
-  n_reads_total,
+  imaging_n_cells_per_well_lambda,
+  imaging_n_cells_per_well_nu,
   class_pos_mu,
   class_pos_var,
   class_neg_mu,
-  class_neg_var
+  class_neg_var,
+  sequencing_n_cells_per_well_lambda,
+  sequencing_n_cells_per_well_nu,
+  pcr_factor_mu,
+  pcr_factor_var,
+  n_cells_per_gene_per_well,
+  n_barcodes_per_gene_per_well,
+  n_reads_total
 )
 }
 \arguments{
-\item{n_genes_per_library}{integer number of genes in the library}
-
-\item{gene_abundance_factor_mu}{numeric}
-
-\item{gene_abundance_factor_var}{numeric}
+\item{n_genes_in_library}{integer number of genes in the library}
 
 \item{gene_hit_rate}{numeric}
 
@@ -37,12 +37,6 @@ simulate_screen(
 
 \item{well_abundance_factor_var}{numeric}
 
-\item{n_genes_per_well}{integer}
-
-\item{n_cells_per_well_mu}{numeric}
-
-\item{n_cells_per_well_var}{numeric}
-
 \item{class_pos_mu}{numeric}
 
 \item{class_pos_var}{numeric}
@@ -50,6 +44,16 @@ simulate_screen(
 \item{class_neg_mu}{numeric}
 
 \item{class_neg_var}{numeric}
+
+\item{gene_abundance_factor_mu}{numeric}
+
+\item{gene_abundance_factor_var}{numeric}
+
+\item{n_genes_per_well}{integer}
+
+\item{n_cells_per_well_mu}{numeric}
+
+\item{n_cells_per_well_var}{numeric}
 }
 \description{
 Given assay parameters run the following simulation
@@ -68,7 +72,7 @@ distribution
 
 gene_well_count_ij ~ binomial(
 size = gene_well_dispersion,                           # check this
-prob = (n_cells_per_well / n_genes_per_library) *
+prob = (n_cells_per_well / n_genes_in_library) *
 gene_abundance_factor * well_abundance_factor)
 
 where the gene and well abundance factors control scale expected abundance
@@ -113,7 +117,7 @@ shape2 = (1 - class_neg_mu) * ((class_neg_mu * (1 - class_neg_mu) / class_neg_va
 \examples{
 \dontrun{
   scores <- spaCRPower::scan_parameters(
-    n_genes_per_library = 200,
+    n_genes_in_library = 200,
     gene_abundance_factor_mu = 1,
     gene_abundance_factor_var = .01,
     gene_hit_rate = 0.05,

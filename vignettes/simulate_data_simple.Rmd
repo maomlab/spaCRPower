@@ -1,0 +1,223 @@
+---
+title: "Simulate a Screen"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulate a Screen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(spaCRPower)
+library(patchwork)
+```
+
+
+```{r simulate-library}
+gene_library <- simulate_library(
+  n_genes_in_library = 200,
+  gene_abundance_alpha = .01,
+  gene_hit_rate = 0.05)
+
+```
+
+
+```{r plot-simulate-library}
+
+plot_data <- data.frame(gene_abundance_alpha = c(0.3, 1, 3, 10)) |>
+  dplyr::rowwise() |>
+  dplyr::do({
+    gene_abundance_alpha <- .$gene_abundance_alpha[1]
+    simulate_library(
+      n_genes_in_library = 200,
+      gene_abundance_alpha = gene_abundance_alpha,
+      gene_hit_rate = 0.05)
+  })
+
+ggplot2::ggplot(data = plot_data) +
+  ggplot2::theme_bw() +
+  ggplot2::ggtitle(label = "Distribution of Gene Abundances by Alpha") +
+  ggplot2::geom_histogram(
+    mapping = ggplot2::aes(
+      x = gene_abundance * 200),
+    bins = 50) +
+  ggplot2::scale_x_log10("Probability of gene in the library") +
+  ggplot2::scale_y_log10("Density of genes with given probaiblity") +
+  ggplot2::facet_wrap(facets = dplyr::vars(gene_abundance_alpha))
+```
+  
+```{r plot-simulate-library-gini}
+
+plot_data <- data.frame(
+  gene_abundance_alpha = 10^(seq(-3, 3, length.out = 40))) |>
+  dplyr::rowwise() |>
+  dplyr::do({
+    gene_abundance_alpha <- .$gene_abundance_alpha[1]
+    cat(
+      "Simulating library with log10_alpha ",
+      log10(gene_abundance_alpha), "\n", sep = "")
+    simulated_library <- simulate_library(
+      n_genes_in_library = 200,
+      gene_abundance_alpha = gene_abundance_alpha,
+      gene_hit_rate = 0.05)
+    
+    gini <- DescTools::Gini(
+      simulated_library$gene_abundance,
+      conf.level = 0.95)
+    
+    data.frame(
+      gene_abundance_alpha = gene_abundance_alpha,
+      gini = gini[1],
+      gini_low = gini[2],
+      gini_high = gini[3])
+  })
+    
+ggplot2::ggplot(data = plot_data) +
+  ggplot2::theme_bw() +
+  ggplot2::ggtitle(label = "Gene abundance Gini by Alpha") +
+  ggplot2::geom_ribbon(
+    mapping = ggplot2::aes(
+      x = gene_abundance_alpha,
+      ymin = gini_low,
+      ymax = gini_high),
+    alpha = 0.2) +
+  ggplot2::geom_line(
+    mapping = ggplot2::aes(
+      x = gene_abundance_alpha,
+      y = gini),
+    linewidth = 1.4) +
+  ggplot2::scale_x_log10("Gene Abundance Alpha") +
+  ggplot2::scale_y_continuous("Gini Index")
+```
+  
+```{r simulate-spot-plate}  
+gene_library <- simulate_library(
+  n_genes_in_library = 200,
+  gene_abundance_alpha = 1000,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1000,
+  well_abundance_factor_mu = 10,
+  well_abundance_factor_var = 2)
+
+```
+  
+```{r plot-simulate-spot-plate}
+plot1 <- plot_genes_per_well(spot_plate)
+plot2 <- plot_wells_per_gene(spot_plate)
+
+patchwork::wrap_plots(plot1, plot2)
+```
+```{r simulate-spot-plate}  
+gene_library <- simulate_library(
+  n_genes_in_library = 200,
+  gene_abundance_alpha = 1000,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1000,
+  well_abundance_factor_mu = 10,
+  well_abundance_factor_var = 2)
+
+imaging_plate <- simulate_imaging_plate(
+  spot_plate,
+  imaging_n_cells_per_well_lambda = 1000,
+  imaging_n_cells_per_well_nu = 1,
+  class_pos_mu = 0.95,
+  class_pos_var = .01,
+  class_neg_mu = 0.5,
+  class_neg_var = .01)
+
+sequencing_plate <- simulate_sequencing_plate(
+  spot_plate,
+  sequencing_n_cells_per_well_lambda = 1000,
+  sequencing_n_cells_per_well_nu = 1,
+  pcr_factor_mu = 0.1,
+  pcr_factor_var = 0.01,
+  n_reads_total = 1000)
+
+
+```  
+  
+```{r simulate-screen}  
+
+data <- spaCRPower::simulate_screen(
+  n_genes_in_library = 200,
+  gene_abundance_alpha = 1000,
+  gene_hit_rate = 0.05,
+  n_wells_per_screen = 1000,
+  well_abundance_factor_mu = 10,
+  well_abundance_factor_var = 2,
+  imaging_n_cells_per_well_lambda = 1000,
+  imaging_n_cells_per_well_nu = 1,
+  class_pos_mu = 0.95,
+  class_pos_var = .01,
+  class_neg_mu = 0.5,
+  class_neg_var = .01,
+  sequencing_n_cells_per_well_lambda = 1000,
+  sequencing_n_cells_per_well_nu = 1,
+  pcr_factor_mu = 0.1,
+  pcr_factor_var = 0.01,
+  n_reads_total = 1000)
+
+```
+
+
+
+```{r make-plots}
+plot1 <- plot_genes_per_well(data)
+plot2 <- plot_wells_per_gene(data)
+plot3 <- plot_positivity_rate_by_well(data)
+plot4 <- plot_well_gene_reads_heatmap(data)
+
+patchwork::wrap_plots(plot1, plot2, plot3, plot4)
+
+```
+
+
+```{r fit-model}
+
+data <- spaCRPower::simulate_screen(
+  n_genes_in_library = 200,
+  gene_abundance_alpha = 1000,
+  gene_hit_rate = 0.05,
+  n_wells_per_screen = 20,
+  well_abundance_factor_mu = 10,
+  well_abundance_factor_var = 2,
+  imaging_n_cells_per_well_lambda = 1000,
+  imaging_n_cells_per_well_nu = 1,
+  class_pos_mu = 0.99,
+  class_pos_var = .0001,
+  class_neg_mu = 0.01,
+  class_neg_var = .0001,
+  sequencing_n_cells_per_well_lambda = 1000,
+  sequencing_n_cells_per_well_nu = 1,
+  pcr_factor_mu = 0.1,
+  pcr_factor_var = 0.01,
+  n_reads_total = 1000)
+
+model_data <- prepare_model_data(data)
+
+if (is.null(model)) {
+  if (verbose) {
+    cat("Compiling model for the first time...\n")
+  }
+  model <<- compile_model(model_data)
+}
+
+model_fit <- fit_model(model_data, model)
+model_estimate <- gather_model_estimate(model_fit)
+model_evaluation <- evaluate_model_fit(data, model_estimate)
+
+```
+

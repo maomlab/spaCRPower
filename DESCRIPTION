@@ -1,22 +1,36 @@
 Package: spaCRPower
-Title: What the Package Does (One Line, Title Case)
+Title: Simulation of Spatial Phenotype Analysis of CRISPR-Cas9 Screens
 Version: 0.0.0.9000
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: MIT + file LICENSE
+  person(
+    "Matthew", "O'Meara", "maom@umich.edu", role = c("aut", "cre"),
+    comment = c(ORCID = "0000-0002-3128-5331"))
+Description: This package facilitates simulating pooled genetic screens and
+  single cell phenotyping. The question is for a given library size and a
+  cell-level classifier, on average how many cells of different genotypes and
+  how many wells are needed to accurately classify a genotype as having the
+  phenotype? This package complements the SpaCR package.
+License: MIT
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 Requires:
+    R (>= 4.1.0),
     cmdstanr,
     yardstick,
+    dplyr,
+    readr,
+    tidyr,
+    forcats,
+    brms,
+    tibble,
     ggplot2,
     ggrepel,
-    patchwork
+    patchwork,
+    ggdist,
+    tidybayes,
+    extraDistr
 Suggests: 
     knitr,
-    rmarkdown,
-
+    rmarkdown
 VignetteBuilder: knitr

@@ -2,15 +2,16 @@
 #' Prepare data for modeling
 #'
 #' Given a dataset, compute for each (well, gene) pair, the number of positive
-#' and log10 total cell count.
+#' and log10 expression, where expression is the the fraction of reads for that
+#' gene in the well + .0001
 #'
 #' @param data data.frame with columns \[`well`, `gene`, `positive`,
-#'   `n_cells_per_gene_per_well`\]
+#'   `n_reads_per_gene_per_well`\]
 #'
 #'
-#' @return `tibble::tibble` with columns \[`well`, `Npositive`, `log10counts`\]
-#'   where the types are `factor`, `numeric`, `matrix` and the matrix has
-#'   `1` row and `n_gene` columns.
+#' @return `tibble::tibble` with columns \[`well`, `Npositive`,
+#'   `log10expression`\] where the types are `factor`, `numeric`, `matrix` and
+#'   the matrix has `1` row and `n_gene` columns.
 #'
 #' @examples
 #' \dontrun{
@@ -30,11 +31,13 @@ prepare_model_data <- function(data) {
     dplyr::group_by(well) |>
     dplyr::do({
       well_data <- .
+      total_reads <- sum(well_data$n_reads_per_gene_per_well)
+
       tibble::tibble(
         well = as.factor(well_data$well[1]),
         Npositive = sum(well_data$positive),
-        log10counts = matrix(
-          log10(well_data$n_cells_per_gene_per_well + .0001),
+        log10expression = matrix(
+          log10(well_data$n_reads_per_gene_per_well/total_reads + .0001),
           nrow = 1))
     }) |>
     dplyr::ungroup()
@@ -67,7 +70,7 @@ compile_model <- function(
     backend = "cmdstanr") {
 
   brms::brm(
-    formula = Npositive ~ 1 + log10counts,
+    formula = Npositive ~ 1 + log10expression,
     data = model_data,
     family = poisson,
     prior = brms::prior(horseshoe(df = 10), class = "b"),
@@ -106,8 +109,6 @@ compile_model <- function(
 #'   model_estimate <- gather_model_estimate(model_fit)
 #'   model_evaluation <- evaluate_model_fit(data, model_estimate)
 #' }
-#'
-#'
 #'
 #' @export
 fit_model <- function(
@@ -157,7 +158,7 @@ fit_model <- function(
 gather_model_estimate <- function(model_fit) {
   model_fit |>
     posterior::summarize_draws() |>
-    dplyr::filter(variable |> stringr::str_detect("count")) |>
+    dplyr::filter(variable |> stringr::str_detect("expression")) |>
     dplyr::transmute(
       gene = variable |> stringr::str_extract("[0-9]+$") |> as.integer(),
       variable_label = paste0("Gene ", gene) |> forcats::fct_inorder(),

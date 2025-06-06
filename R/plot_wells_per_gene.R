@@ -27,7 +27,7 @@ plot_wells_per_gene <- function(data) {
   plot_data <- data |>
     dplyr::group_by(gene) |>
     dplyr::summarize(
-      n_wells = sum(n_cells_per_gene_per_well > 0),
+      n_wells = sum(gene_in_well > 0),
       .groups = "drop")
 
   plot_data_mean <- plot_data |>
@@ -35,17 +35,20 @@ plot_wells_per_gene <- function(data) {
       mean_n_wells = mean(n_wells),
       .groups = "drop")
 
-  max_height <- plot_data |>
-    dplyr::count(n_wells) |>
-    purrr::pluck("n") |>
-    max()
+  histogram_data <- hist(
+    log10(plot_data$n_wells),
+    breaks = 30,
+    plot = FALSE)
+
+  max_height <- histogram_data$counts |> max()
 
   ggplot2::ggplot() +
     ggplot2::theme_bw() +
-    ggplot2::geom_bar(
+    ggplot2::geom_histogram(
       data = plot_data,
       mapping = ggplot2::aes(
-        x = n_wells)) +
+        x = n_wells),
+      bins = 30) +
     ggplot2::geom_vline(
       data = plot_data_mean,
       mapping = ggplot2::aes(
@@ -57,7 +60,7 @@ plot_wells_per_gene <- function(data) {
         label = round(mean_n_wells),
         y = 1.1 * max_height),
       direction = "x",
-      nudge_x = 1) +
+      nudge_x = 0.1) +
     ggplot2::scale_y_continuous("Gene Count") +
-    ggplot2::scale_x_continuous("Wells per Gene Count")
+    ggplot2::scale_x_log10("Wells per Gene Count")
 }
