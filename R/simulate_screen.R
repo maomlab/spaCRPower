@@ -52,6 +52,12 @@ rbeta_mean_variance <- function(n, mean, var) {
     shape2 = (1 - mean) * ((mean * (1 - mean) / var) - 1))
 }
 
+anscombe_mean <- function(n, mean) {
+  rpois(
+    n = n,
+    lambda = (mean / 2)^2 - 3/8)
+}
+
 
 #' Simulate a library of gene perturbations
 #'
@@ -243,18 +249,36 @@ simulate_imaging_plate <- function(
       n_genes_in_well = sum(gene_in_well),
       .groups = "drop")
 
-  spot_plate |>
-    dplyr::left_join(well_summary,by = "well") |>
+  imaging_plate <- spot_plate |>
+    dplyr::left_join(well_summary,by = "well")
+
+  # if the dispersion parameter is 1, then this is the poisson distribution
+  # so sample from rpois, because it is fast, and sample from the
+  # COM-Poisson distribution otherwise
+  if (imaging_n_cells_per_well_nu == 1) {
+    imaging_plate <- imaging_plate |>
+      dplyr::mutate(
+        imaging_n_cells_per_gene_per_well = gene_in_well *
+          rpois(
+            n = dplyr::n(),
+            lambda = imaging_n_cells_per_well_lambda))
+  } else {
+    imaging_plate <- imaging_plate |>
+      dplyr::mutate(
+        imaging_n_cells_per_gene_per_well = gene_in_well *
+          COMPoissonReg::rcmp(
+            n = dplyr::n(),
+            lambda = imaging_n_cells_per_well_lambda,
+            nu = imaging_n_cells_per_well_nu))
+  }
+
+  imaging_plate |>
     dplyr::transmute(
       gene,
       well,
       imaging_n_cells_per_well_lambda = imaging_n_cells_per_well_lambda,
       imaging_n_cells_per_well_nu = imaging_n_cells_per_well_nu,
-      imaging_n_cells_per_gene_per_well = gene_in_well *
-        COMPoissonReg::rcmp(
-          n = dplyr::n(),
-          lambda = imaging_n_cells_per_well_lambda,
-          nu = imaging_n_cells_per_well_nu),
+      imaging_n_cells_per_gene_per_well = imaging_n_cells_per_gene_per_well,
       class_pos_mu = class_pos_mu,
       class_pos_var = class_pos_var,
       class_neg_mu = class_neg_mu,
@@ -295,7 +319,7 @@ simulate_sequencing_plate <- function(
       .groups = "drop") |>
     dplyr::mutate(
       pcr_factor = rlnorm(
-        n = 1,
+        n = dplyr::n(),
         meanlog = pcr_factor_mu,
         sdlog = sqrt(pcr_factor_var)))
 
@@ -326,14 +350,19 @@ simulate_sequencing_plate <- function(
     dplyr::group_by(well) |>
     dplyr::do({
       well_data <- .
+      n_cells_in_well <- sum(well_data$sequencing_n_cells_per_gene_per_well)
 
-      n_barcodes_per_genes_per_well <- round(
-        well_data$sequencing_n_cells_per_gene_per_well * well_data$pcr_factor)
-
-      n_reads_per_gene_per_well <- extraDistr::rmvhyper(
-        nn = 1,
-        n = n_barcodes_per_genes_per_well,
-        k = n_reads_total) |> as.numeric()
+      if (sum(well_data$sequencing_n_cells_per_gene_per_well) > 0) {
+        n_barcodes_per_genes_per_well <- round(
+          well_data$sequencing_n_cells_per_gene_per_well * well_data$pcr_factor)
+        n_reads_per_gene_per_well <- extraDistr::rmvhyper(
+          nn = 1,
+          n = n_barcodes_per_genes_per_well,
+          k = min(n_cells_in_well * well_data$pcr_factor[1], n_reads_total)) |>
+          as.numeric()
+      } else {
+        n_reads_per_gene_per_well <- rep(0, length.out = nrow(well_data))
+      }
 
       tibble::tibble(
         well = well_data$well,

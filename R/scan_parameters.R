@@ -5,7 +5,7 @@
 #' For each combination of given parameters, generate a simulated dataset
 #' fit a model to it and estimate the predictive accuracy.
 #'
-#' @param n_genes_per_library integer number of genes in the library
+#' @param n_genes_in_library integer number of genes in the library
 #' @param gene_abundance_alpha numeric
 #' @param gene_hit_rate numeric
 #' @param n_wells_per_screen integer
@@ -75,7 +75,7 @@ scan_parameters <- function(
     ...) {
 
   parameter_sets <- tidyr::expand_grid(
-    n_genes_per_library = n_genes_per_library,
+    n_genes_in_library = n_genes_in_library,
     gene_abundance_alpha = gene_abundance_alpha,
     gene_hit_rate = gene_hit_rate,
     n_wells_per_screen = n_wells_per_screen,
@@ -120,7 +120,7 @@ scan_parameters <- function(
       if (verbose) {
         cat(
           "params: \n",
-          "  n_genes_per_library = ", params$n_genes_per_library[1], "\n",
+          "  n_genes_in_library = ", params$n_genes_in_library[1], "\n",
           "  gene_abundance_alpha = ", params$gene_abundance_alpha[1], "\n",
           "  gene_hit_rate = ", params$gene_hit_rate[1], "\n",
           "  n_wells_per_screen = ", params$n_wells_per_screen[1], "\n",
@@ -140,7 +140,7 @@ scan_parameters <- function(
           sep = "")
       }
       data <- simulate_screen(
-        n_genes_per_library = params$n_genes_per_library[1],
+        n_genes_in_library = params$n_genes_in_library[1],
         gene_abundance_alpha = params$gene_abundance_alpha[1],
         gene_hit_rate = params$gene_hit_rate[1],
         n_wells_per_screen = params$n_wells_per_screen[1],
