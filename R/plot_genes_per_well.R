@@ -22,7 +22,6 @@
 #'
 #' @export
 plot_genes_per_well <- function(data) {
-
   plot_data <- data |>
     dplyr::group_by(well) |>
     dplyr::summarize(
@@ -31,7 +30,7 @@ plot_genes_per_well <- function(data) {
 
   plot_data_mean <- plot_data |>
     dplyr::summarize(
-      mean_n_genes = mean(n_genes),
+      mean_n_genes = mean(n_genes, na.rm =TRUE),
       .groups = "drop")
 
   max_height <- plot_data |>
@@ -53,7 +52,7 @@ plot_genes_per_well <- function(data) {
       data = plot_data_mean,
       mapping = ggplot2::aes(
         x = mean_n_genes,
-        label = round(mean_n_genes),
+        label = signif(mean_n_genes, digits = 2),
         y = 1.1 * max_height),
       direction = "x",
       nudge_x = 1) +

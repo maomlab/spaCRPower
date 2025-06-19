@@ -1,0 +1,457 @@
+---
+title: "02.3_fit_imaging_plate_params"
+output: html_document
+---
+
+```{r load-data}
+
+load("intermediate_data/data_gene.Rdata")
+```
+
+```{r positivity-rates}
+
+class_pos_mu <- 0.95
+class_pos_var <- 0.01
+class_neg_mu <- 0.05
+class_neg_var <- 0.01
+
+
+plot_data <- data.frame(
+  x = seq(0, 1, length.out = 1000)) |>
+  dplyr::mutate(
+    class_pos = dbeta(
+      x = x,
+      shape1 = class_pos_mu *
+        ((class_pos_mu * (1 - class_pos_mu) / class_pos_var) - 1),
+      shape2 = (1 - class_pos_mu) *
+        ((class_pos_mu * (1 - class_pos_mu) / class_pos_var) - 1)),
+    class_neg = dbeta(
+      x = x,
+      shape1 = class_neg_mu *
+        ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1),
+      shape2 = (1 - class_neg_mu) *
+        ((class_neg_mu * (1 - class_neg_mu) / class_neg_var) - 1)))
+
+ggplot2::ggplot(data = plot_data) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_area(
+    mapping = ggplot2::aes(
+      x = x,
+      y = log(class_neg+1)),
+    fill = "blue",
+    alpha = 0.6) +
+  ggplot2::geom_area(
+    mapping = ggplot2::aes(
+      x = x,
+      y = log10(class_pos+1)),
+    fill = "orange",
+  alpha = 0.6) +
+  ggplot2::scale_x_continuous(
+    "Cell classification score",
+    limits = c(0, 1)) +
+  ggplot2::scale_y_continuous(
+    "Density score",
+    labels = c("0", "1", "10", "100", "1000", "10000"),
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000) + 1))
+
+```
+
+
+# Imaging plate statistics
+```{r n-reads-per-well}
+
+scales <- list(ggplot2::scale_y_continuous(
+    "Count of Wells",
+    limits = c(0, 500)),
+  ggplot2::scale_x_continuous(
+    "Count of Cells",
+    breaks = sqrt(c(0, 1, 4, 9, 16, 25)*10000),
+    labels = c("0", "10k", "40k", "90k", "160k", "250k"),
+    limits = c(0, 500)))
+
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    n_well_imaging_cells = sum(maxvit_positive + maxvit_negative),
+    .groups = "drop")
+mean_n_well_imaging_cells <- signif(mean(plot_data$n_well_imaging_cells, na.rm = T), 3)
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "Total cells in imaging plate fields of view",
+    subtitle = paste0("Mean: ", mean_n_well_imaging_cells)) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = sqrt(n_well_imaging_cells)),
+    bins = 15) +
+  scales
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 1,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 5,
+  well_abundance_factor_var = 1)
+
+imaging_plate <- simulate_imaging_plate(
+  spot_plate,
+  imaging_n_cells_per_well_lambda = 190,
+  imaging_n_cells_per_well_nu = 1,
+  class_pos_mu = 0.95,
+  class_pos_var = .01,
+  class_neg_mu = 0.5,
+  class_neg_var = .01)
+
+
+plot_data <- imaging_plate |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    n_well_imaging_cells = sum(imaging_n_cells_per_gene_per_well),
+    .groups = "drop")
+mean_n_well_imaging_cells <- signif(mean(plot_data$n_well_imaging_cells, na.rm = T), 3)
+
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "",
+    subtitle = paste0("Mean: ", mean_n_well_imaging_cells)) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = sqrt(n_well_imaging_cells)),
+    bins = 15) +
+  scales
+
+plot <- patchwork::wrap_plots(plot1, plot2)
+
+ggplot2::ggsave(
+  filename = "product/n_well_imaging_cells_20250613.pdf",
+  width = 7,
+  height = 4,
+  useDingbats = FALSE)
+
+```
+```{r fit-positivity-rate}
+
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    n_well_imaging_cells = sum(maxvit_positive + maxvit_negative),
+    .groups = "drop")
+mean_n_well_imaging_cells <- signif(mean(plot_data$n_well_imaging_cells, na.rm = T), 3)
+screen_summary_stats <- plot_data |>
+  dplyr::summarize(
+    mean_n = mean(n_well_imaging_cells, na.rm = T),
+    sd_n = sd(n_well_imaging_cells, na.rm = T))
+
+
+
+plot_data <- tidyr::expand_grid(
+  lambda = seq(500, 10000, length.out=5),
+  nu = seq(.9, 20, length.out = 20)) |>
+  dplyr::rowwise() |>
+  dplyr::do({
+    params <- .
+    lambda <- params$lambda[1]
+    nu <- params$nu[1]
+    
+    gene_library <- simulate_library(
+      n_genes_in_library = 452,
+      gene_abundance_alpha = 1,
+      gene_hit_rate = 0.05)
+
+    spot_plate <- simulate_spot_plate(
+      gene_library,
+      n_wells_per_screen = 1536,
+      well_abundance_factor_mu = 5,
+      well_abundance_factor_var = 1)
+
+    imaging_plate <- simulate_imaging_plate(
+      spot_plate,
+      imaging_n_cells_per_well_lambda = lambda,
+      imaging_n_cells_per_well_nu = nu,
+      class_pos_mu = 0.95,
+      class_pos_var = .01,
+      class_neg_mu = 0.5,
+      class_neg_var = .01)
+  
+    plot_data <- imaging_plate |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(
+        n_well_imaging_cells = sum(imaging_n_cells_per_gene_per_well),
+        .groups = "drop")
+    mean_n_well_imaging_cells <- signif(mean(plot_data$n_well_imaging_cells, na.rm = T), 3)
+    summary_scores <- plot_data |>
+      dplyr::summarize(
+        mean_n = mean(n_well_imaging_cells, na.rm = T),
+        sd_n = sd(n_well_imaging_cells, na.rm = T)) |>
+      dplyr::mutate(
+        lambda = lambda,
+        nu = nu)
+    cat(
+      "summary scores for lambda=", lambda, ",\tnu=", nu, ":\t",
+      "mean=", summary_scores$mean_n[1], "\t",
+      "sd=", summary_scores$sd_n[1],
+      "\n", sep = "")
+    summary_scores
+  }) |>
+  dplyr::ungroup()
+
+ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_line(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = mean_n,
+      y = sd_n,
+      group = lambda)) +
+  ggplot2::geom_point(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = mean_n,
+      y = sd_n,
+      color = nu)) +
+  ggplot2::scale_x_log10("Mean N cells") +
+  ggplot2::scale_y_log10("SD N cells")
+  
+
+ggplot2::ggsave(
+  filename = "product/n_well_imaging_cells_sweep_20250613.pdf",
+  width = 5,
+  height = 5,
+  useDingbats = FALSE)
+
+
+
+```
+
+
+```{r fit-positivity-rate}
+
+
+scales <- list(ggplot2::scale_y_continuous(
+    "Count of Wells",
+    limits = c(0, 1000)),
+  ggplot2::scale_x_continuous(
+    "Count of Cells",
+    breaks = sqrt(c(0, 1, 4, 9, 16, 25)*10000),
+    labels = c("0", "10k", "40k", "90k", "160k", "250k"),
+    limits = c(0, 500)))
+
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    n_well_imaging_cells = sum(maxvit_positive + maxvit_negative),
+    .groups = "drop")
+mean_n_well_imaging_cells <- signif(mean(plot_data$n_well_imaging_cells, na.rm = T), 3)
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "Total cells in imaging plate fields of view",
+    subtitle = paste0("Mean: ", mean_n_well_imaging_cells)) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = sqrt(n_well_imaging_cells)),
+    bins = 15) +
+  scales
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 1,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 4,
+  well_abundance_factor_var = 1)
+
+imaging_plate <- simulate_imaging_plate(
+  spot_plate,
+  imaging_n_cells_per_well_lambda = 43200/4,
+  imaging_n_cells_per_well_nu = 1,
+  class_pos_mu = 0.95,
+  class_pos_var = .01,
+  class_neg_mu = 0.5,
+  class_neg_var = .01)
+
+plot_data <- imaging_plate |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    n_well_imaging_cells = sum(imaging_n_cells_per_gene_per_well),
+    .groups = "drop")
+mean_n_well_imaging_cells <- signif(mean(plot_data$n_well_imaging_cells, na.rm = T), 3)
+summary_scores <- plot_data |>
+  dplyr::summarize(
+    mean_n = mean(n_well_imaging_cells, na.rm = T),
+    sd_n = sd(n_well_imaging_cells, na.rm = T))
+cat(
+  "summary scores for lambda=", lambda, ",\tnu=", nu, ":\t",
+  "mean=", summary_scores$mean_n[1], "\t",
+  "sd=", summary_scores$sd_n[1],
+  "\n", sep = "")
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "",
+    subtitle = paste0("Mean: ", mean_n_well_imaging_cells)) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = sqrt(n_well_imaging_cells)),
+    bins = 15) +
+  scales
+
+plot <- patchwork::wrap_plots(plot1, plot2)
+
+ggplot2::ggsave(
+  filename = "product/n_well_imaging_cells_20250613.pdf",
+  width = 7,
+  height = 4,
+  useDingbats = FALSE)
+
+
+
+```
+```{r class-positivity-rate}
+
+scales <- list(
+  ggplot2::scale_y_continuous(
+    "Percent of Positive Cells in Well",
+    breaks = c(0, 0.25, 0.5, 0.75, 1),
+    labels = c("0", "25%", "50%", "75%", "100%"),
+    limits = c(0, 1)),
+  ggplot2::scale_x_continuous(
+    "Count of Cells",
+    breaks = sqrt(c(0, 1, 4, 9, 16, 25)*10000),
+    labels = c("0", "10k", "40k", "90k", "160k", "250k"),
+    limits = c(0, 500)))
+
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    n_well_positive_imaging_cells = sum(maxvit_positive),
+    n_well_imaging_cells = sum(maxvit_positive + maxvit_negative),
+    .groups = "drop")
+
+mean_positivity_rate_per_well <- plot_data |>
+#  dplyr::filter(
+#    n_well_positive_imaging_cells / n_well_imaging_cells < 0.95,
+#    n_well_positive_imaging_cells / n_well_imaging_cells > 0.05) |>
+  dplyr::summarize(mean_pos = mean(n_well_positive_imaging_cells / n_well_imaging_cells, na.rm=T)) |>
+  dplyr::pull("mean_pos")
+
+# mean positivity rate
+# mean_pos = n_genes_per_well * hit_rate       * pos_rate + 
+#            n_genes_per_well * (1 - hit_rate) * neg_rate
+
+# per-gene positivity rate
+# mean_pos / n_genes_per_well = hit_rate       * pos_rate +
+#                               (1 - hit_rate) * neg_rate
+
+# hit_rate given pos_rate and neg_rate
+# mean_pos / n_genes_per_well = hit_rate * pos_rate + neg_rate - hit_rate * neg_rate
+# mean_pos / n_genes_per_well = hit_rate * pos_rate - hit_rate * neg_rate + neg_rate
+# mean_pos / n_genes_per_well = hit_rate * (pos_rate - neg_rate) + neg_rate
+# hit_rate * (pos_rate - neg_rate) + neg_rate = mean_pos / n_genes_per_well
+# hit_rate * (pos_rate - neg_rate) = mean_pos / n_genes_per_well - neg_rate
+# hit_rate = (mean_pos / n_genes_per_well - neg_rate) / (pos_rate - neg_rate)
+#          = (0.02357031 - 0.01357031) / (0.8135703 - 0.01357031)
+
+
+
+m <- lm(y ~ 1, data = plot_data |> dplyr::mutate( y = n_well_positive_imaging_cells / n_well_imaging_cells))
+
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "Total cells in imaging plate fields of view",
+    subtitle = "Screen") +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = sqrt(n_well_imaging_cells),
+      y = n_well_positive_imaging_cells / n_well_imaging_cells),
+    size = 0.8,
+    alpha = 0.8,
+    shape = 16) +
+  ggplot2::geom_hline(yintercept = mean_positivity_rate_per_well) +
+  scales
+
+neg_rate <- .15
+pos_rate <- .85
+hit_rate <- (mean_positivity_rate_per_well - neg_rate) / (pos_rate - neg_rate)
+#cat("mean_gene_pos_rate = ", mean_per_gene_positivity_rate, "\n")
+cat("hit_rate = ", hit_rate, "\n")
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 1,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 5,
+  well_abundance_factor_var = 1)
+
+imaging_plate <- simulate_imaging_plate(
+  spot_plate,
+  imaging_n_cells_per_well_lambda = 43200/4,
+  imaging_n_cells_per_well_nu = 1,
+  class_pos_mu = pos_rate,
+  class_pos_var = .005,
+  class_neg_mu = neg_rate,
+  class_neg_var = .005)
+
+
+plot_data <- imaging_plate |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    n_well_positive_imaging_cells = sum(positive),
+    n_well_imaging_cells = sum(imaging_n_cells_per_gene_per_well),
+    .groups = "drop")
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "",
+    subtitle = "Simulation") +
+  ggplot2::theme_bw() +
+  ggplot2::geom_point(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = sqrt(n_well_imaging_cells),
+      y = n_well_positive_imaging_cells/n_well_imaging_cells),
+    size = 0.8,
+    alpha = 0.8,
+    shape = 16) +
+  scales
+
+
+plot <- patchwork::wrap_plots(plot1, plot2)
+
+ggplot2::ggsave(
+  filename = "product/fraction_positive_by_well_20250615.pdf",
+  width = 7,
+  height = 4,
+  useDingbats = FALSE)
+
+```
+
+
+

@@ -57,13 +57,18 @@ plot_classification_scores <- function(
     ggplot2::geom_area(
       mapping = ggplot2::aes(
         x = x,
-        y = class_neg),
+        y = log(class_neg+1)),
       fill = "blue",
       alpha = 0.6) +
     ggplot2::geom_area(
       mapping = ggplot2::aes(
         x = x,
-        y = class_pos),
+        y = log10(class_pos+1)),
       fill = "orange",
-    alpha = 0.6)
+    alpha = 0.6) +
+    ggplot2::scale_x_continuous(
+      "Cell classification score",
+      limits = c(0, 1)) +
+    ggplot2::scale_y_log10(
+      "Density score")
 }

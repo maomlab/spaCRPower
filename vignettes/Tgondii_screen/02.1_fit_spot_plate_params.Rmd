@@ -1,0 +1,338 @@
+---
+title: "02.1_fit_spot_plate_params"
+output: html_document
+---
+
+```{r load-data}
+
+load("intermediate_data/data_gene.Rdata")
+```
+
+
+```{r genes-wells-in-screen}
+genes <- data_gene |>
+  dplyr::distinct(gene) |>
+  dplyr::arrange(gene)
+save(genes, file = "intermediate_data/genes.Rdata")
+
+cat("N genes: ", nrow(genes), "\n", sep = "")
+
+wells <- data_gene |>
+  dplyr::distinct(plate, row, column) |>
+  dplyr::arrange(plate, row, column)
+save(genes, file = "intermediate_data/wells.Rdata")
+
+cat("N wells: ", nrow(wells), "\n", sep = "")
+
+```
+
+# Sequencing plate statistics
+```{r n-reads-per-well}
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    well_read_count = sum(read_count),
+    .groups = "drop")
+geometric_mean_reads_per_well <- round(10^(mean(log10(plot_data$well_read_count))))
+
+plot <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "Total number of reads per well",
+    subtitle = paste0("Geometric mean: ", geometric_mean_reads_per_well)) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = log10(well_read_count)),
+    bins = 50) +
+  ggplot2::scale_y_continuous(
+    "Count of Wells") +
+  ggplot2::scale_x_continuous(
+    "Well Read Count",
+    breaks = c(4.25, 4.5, 4.75, 5, 5.25),
+    labels = paste0("1e", c(4.25, 4.5, 4.75, 5, 5.25)))
+
+ggplot2::ggsave(
+  filename = "product/well_read_count_histogram_20250608.pdf",
+  width = 5,
+  height = 4,
+  useDingbats = FALSE)
+
+```
+
+
+```{r gene-read-fraction-in-well-distribution}
+
+# Define the noise threshold for a gene to be in a well
+
+gene_in_well_threshold <- 2/100
+
+plot <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "Distribution of Genes in Wells") +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = data_gene |> dplyr::mutate(
+      plate = factor(
+        plate,
+        levels = c(1, 2, 3, 4),
+        labels = paste0("Plate ", 1:4))),
+    mapping = ggplot2::aes(
+      x = log10(well_gene_fraction),
+      y = log10(..count.. + 1)),
+    bins = 50) +
+  ggplot2::geom_vline(
+    xintercept = log10(gene_in_well_threshold)) +
+  ggplot2::scale_y_continuous(
+    "Count of (Gene, Well) pairs",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k")) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Fraction",
+    breaks = log10(c(0.002, 0.02, .2, 2, 20) / 100),
+    labels = c("0.002%", "0.02%", "0.2%", "2%", "20%")) +
+  #ggplot2::scale_fill_discrete("Plate") +
+  ggplot2::facet_wrap(facets = dplyr::vars(plate))
+
+ggplot2::ggsave(
+  filename = "product/well_read_fraction_distribution_20250608.pdf",
+  plot = plot,
+  width = 6,
+  height = 5)
+
+```
+
+```{r gene-in-well-abundance}
+gene_in_well_threshold <- 2/100
+plot_data <- data_gene |>
+  dplyr::mutate(
+    gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column) |>
+      dplyr::mutate(well = dplyr::row_number()),
+    by = c("plate", "row", "column"))
+
+genes_per_well_scales <- list(
+  ggplot2::scale_x_continuous( "Genes per Well Count", limits = c(0, 20)),
+  ggplot2::scale_y_continuous( "Well Count", limits = c(0, 450)))
+
+wells_per_gene_scales <- list(
+  ggplot2::scale_x_continuous( "Wells per Gene Count", limits = c(0, 50)),
+  ggplot2::scale_y_continuous( "Gene Count", limits = c(0, 175)))
+
+plot1 <- plot_genes_per_well(plot_data) + genes_per_well_scales
+plot2 <- plot_wells_per_gene(plot_data) + wells_per_gene_scales
+
+patchwork::wrap_plots(plot1, plot2)
+
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 0.6,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 4,
+  well_abundance_factor_var = 1)
+
+plot3 <- plot_genes_per_well(spot_plate) + genes_per_well_scales
+plot4 <- plot_wells_per_gene(spot_plate) + wells_per_gene_scales
+
+plot <- patchwork::wrap_plots(plot1, plot2, plot3, plot4)
+
+ggplot2::ggsave(
+  filename = "product/gene_in_well_estimation_20250608.pdf",
+  width = 7,
+  height = 7,
+  useDingbats = FALSE)
+
+```
+
+```{r scan-spot-plate-plans}
+
+gene_in_well_threshold <- 2/100
+plot_data <- data_gene |>
+  dplyr::mutate(
+    gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column) |>
+      dplyr::mutate(well = dplyr::row_number()),
+    by = c("plate", "row", "column")) |>
+  dplyr::arrange("plate", "row", "column") |>
+  dplyr::mutate(well = dplyr::row_number())
+
+
+genes_per_well_stats <- plot_data |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    n_genes = sum(gene_in_well > 0),
+    .groups = "drop") |>
+  dplyr::summarize(
+    n_genes_mean = mean(n_genes),
+    n_genes_var = stats::var(n_genes),
+    n_genes_skew = moments::skewness(n_genes))
+  
+wells_per_gene_stats <- plot_data |>
+  dplyr::group_by(gene) |>
+  dplyr::summarize(
+    n_genes = sum(gene_in_well > 0),
+    .groups = "drop") |>
+  dplyr::summarize(
+    n_wells_mean = mean(n_genes),
+    n_wells_var = stats::var(n_genes),
+    n_wells_skew = moments::skewness(n_genes))
+
+screen_summary_stats <- data.frame(
+  n_genes_mean = genes_per_well_stats$n_genes_mean[1],
+  n_genes_var = genes_per_well_stats$n_genes_var[1],
+  n_genes_skew = genes_per_well_stats$n_genes_skew[1],
+  n_wells_mean = wells_per_gene_stats$n_wells_mean[1],
+  n_wells_var = wells_per_gene_stats$n_wells_var[1],
+  n_wells_skew = wells_per_gene_stats$n_wells_skew[1])
+print(screen_summary_stats)
+
+
+
+
+spot_plate_summaries <- tidyr::expand_grid(
+  gene_abundance_alpha = c(.01, .03, .1, .3, 1, 3, 10, 30, 100, 300),
+  well_abundance_factor_var = c(0.1, 0.3, 1, 3, 10, 30, 100, 300)) |>
+  dplyr::mutate(
+    param_index = dplyr::row_number()) |>
+  dplyr::rowwise() |>
+  dplyr::do({
+    params <- .
+    
+    cat(
+      "Simulating spot plate with ",
+      "gene_abundance_alpha=", params$gene_abundance_alpha[1], " ",
+      "well_abundance_factor_var=", params$well_abundance_factor_var[1],
+      "\n", sep = "")
+    
+    gene_library <- simulate_library(
+      n_genes_in_library = 452,
+      gene_abundance_alpha = params$gene_abundance_alpha[1],
+      gene_hit_rate = 0.05)
+
+    spot_plate <- simulate_spot_plate(
+      gene_library,
+      n_wells_per_screen = 1536,
+      well_abundance_factor_mu = 11,
+      well_abundance_factor_var = params$well_abundance_factor_var[1])
+    
+    genes_per_well_stats <- spot_plate |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(
+        n_genes = sum(gene_in_well > 0),
+        .groups = "drop") |>
+      dplyr::summarize(
+        n_genes_var = stats::var(n_genes),
+        n_genes_skew = moments::skewness(n_genes))
+    
+    wells_per_gene_stats <- spot_plate |>
+      dplyr::group_by(gene) |>
+      dplyr::summarize(
+        n_genes = sum(gene_in_well > 0),
+        .groups = "drop") |>
+      dplyr::summarize(
+        n_wells_var = stats::var(n_genes),
+        n_wells_skew = moments::skewness(n_genes))
+
+    data.frame(
+      param_index = params$param_index,
+      gene_abundance_alpha = params$gene_abundance_alpha[1],
+      well_abundance_factor_var = params$well_abundance_factor_var[1],
+      n_genes_var = genes_per_well_stats$n_genes_var[1],
+      n_genes_skew = genes_per_well_stats$n_genes_skew[1],
+      n_wells_var = wells_per_gene_stats$n_wells_var[1],
+      n_wells_skew = wells_per_gene_stats$n_wells_skew[1])
+  })
+
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::ggtitle("Genes per Well") +
+  ggplot2::geom_line(
+    data = spot_plate_summaries,
+    mapping = ggplot2::aes(
+      x = log10(n_genes_var),
+      y = n_genes_skew,
+      group = gene_abundance_alpha)) +
+  ggplot2::geom_point(
+    data = spot_plate_summaries,
+    mapping = ggplot2::aes(
+      x = log10(n_genes_var),
+      y = n_genes_skew,
+      color = log10(well_abundance_factor_var))) +
+  ggplot2::geom_point(
+    data = screen_summary_stats,
+    mapping = ggplot2::aes(
+      x = log10(n_genes_var),
+      y = n_genes_skew),
+    color = "orange",
+    size = 3) +
+  ggplot2::scale_x_continuous(
+    "N Wells per Gene Variance",
+    breaks = c(-1, 0, 1, 2),
+    labels = paste0("1e", c(-1, 0, 1, 2))) +
+  ggplot2::scale_y_continuous(
+    "N Wells per Gene Skew") +
+  ggplot2::scale_color_continuous(
+    "Well Abundance Variance",
+    breaks = c(0, 1, 2),
+    labels = paste0("1e", c(0, 1, 2))) +
+  ggplot2::theme(legend.position = "bottom")
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::ggtitle("Wells per Gene") +
+  ggplot2::geom_line(
+    data = spot_plate_summaries,
+    mapping = ggplot2::aes(
+      x = log10(n_wells_var),
+      y = n_wells_skew,
+      group = well_abundance_factor_var)) +
+  ggplot2::geom_point(
+    data = spot_plate_summaries,
+    mapping = ggplot2::aes(
+      x = log10(n_wells_var),
+      y = n_wells_skew,
+      color = log10(gene_abundance_alpha))) +
+  ggplot2::geom_point(
+    data = screen_summary_stats,
+    mapping = ggplot2::aes(
+      x = log10(n_wells_var),
+      y = n_wells_skew),
+    color = "orange",
+    size = 3) +
+  ggplot2::scale_x_continuous(
+    "N Genes per Well Variance",
+    breaks = c(2, 2.5, 3, 3.5, 4),
+    labels = paste0("1e", c(2, 2.5, 3, 3.5, 4))) +
+  ggplot2::scale_y_continuous(
+    "N Genes per Well Skew") +
+  ggplot2::scale_color_continuous(
+    "Gene Abundance Alpha",
+    breaks = c(-1, 0, 1, 2),
+    labels = paste0("1e", c(-1, 0, 1, 2))) +
+  ggplot2::theme(legend.position = "bottom")
+
+plot <- patchwork::wrap_plots(plot1, plot2)
+
+ggplot2::ggsave(
+  filename = "product/summary_stats_sweep_20250609.pdf",
+  width = 7,
+  height = 4,
+  useDingbats = FALSE)
+
+plot
+
+```
+

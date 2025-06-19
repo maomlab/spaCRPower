@@ -53,7 +53,7 @@ plot_cells_per_well <- function(data) {
       data = plot_data_mean,
       mapping = ggplot2::aes(
         x = mean_n_cells,
-        label = round(mean_n_cells),
+        label = signif(mean_n_cells, digits = 2),
         y = 1.1 * max_height),
       direction = "x",
       nudge_x = .1) +

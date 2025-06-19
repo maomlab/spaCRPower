@@ -1,0 +1,391 @@
+---
+title: "02.2_fit_sequencing_plate_params"
+output: html_document
+---
+
+```{r load-data}
+
+load("intermediate_data/data_gene.Rdata")
+```
+
+
+# Sequencing plate statistics
+```{r n-reads-per-well}
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    well_read_count = sum(read_count),
+    .groups = "drop")
+geometric_mean_reads_per_well <- round(10^(mean(log10(plot_data$well_read_count))))
+
+plot <- ggplot2::ggplot() +
+  ggplot2::ggtitle(
+    "Total number of reads per well",
+    subtitle = paste0("Geometric mean: ", geometric_mean_reads_per_well)) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = log10(well_read_count)),
+    bins = 50) +
+  ggplot2::scale_y_continuous(
+    "Count of Wells") +
+  ggplot2::scale_x_continuous(
+    "Well Read Count",
+    breaks = c(4.25, 4.5, 4.75, 5, 5.25),
+    labels = paste0("1e", c(4.25, 4.5, 4.75, 5, 5.25)))
+
+ggplot2::ggsave(
+  filename = "product/well_read_count_histogram_20250608.pdf",
+  width = 5,
+  height = 4,
+  useDingbats = FALSE)
+
+```
+
+
+      
+for each gene in each well:
+
+    sequencing_n_cells_per_gene_per_well = gene_in_well *
+      rpois(
+        n = dplyr::n(),
+        lambda = sequencing_n_cells_per_well_lambda))
+      
+For each well:
+
+    pcr_factor = rlnorm(
+      n = 1,
+      meanlog = pcr_factor_mu,
+      sdlog = sqrt(pcr_factor_var)
+      
+    n_barcodes_per_genes_per_well <- round(
+      sequencing_n_cells_per_gene_per_well * pcr_factor)
+
+    n_reads_per_gene_per_well <- extraDistr::rmvhyper(
+      nn = 1,
+      n = n_barcodes_per_genes_per_well,
+      k = n_reads_total) |> as.numeric()  
+      
+      
+```{r fit-ncells-pcr_factor}
+
+
+mean_well_fraction <- data_gene |>
+  dplyr::mutate(well_gene_fraction < .02, 0, well_gene_fraction) |>
+  dplyr::summarize(
+    mean_well_gene_fraction = mean(well_gene_fraction)) |>
+  purrr::pluck("mean_well_gene_fraction")
+
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = data_gene,
+    mapping = ggplot2::aes(
+      x = well_gene_fraction,
+      y = log10(..count.. + 1)),
+    bins = 120) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Read Fraction",
+    breaks = c(0, .25, .5, 0.75, 1),
+    labels = c("0%", "25%", "50%", "75%", "100%")) +
+  ggplot2::scale_y_continuous(
+    "Gene x Well Count",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k"))
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 1,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 5,
+  well_abundance_factor_var = 1)
+
+sequencing_plate <- simulate_sequencing_plate(
+  spot_plate,
+  sequencing_n_cells_per_well_lambda = 100000,
+  sequencing_n_cells_per_well_nu = 1.1,
+  pcr_factor_mu = 0.1,
+  pcr_factor_var = 0.01,
+  n_reads_total = round(128318/1536))
+
+sequencing_plate <- sequencing_plate |>
+  dplyr::group_by(well) |>
+  dplyr::mutate(
+    well_gene_fraction = n_reads_per_gene_per_well / sum(n_reads_per_gene_per_well))
+
+10^(mean(log10(sequencing_plate$well_gene_fraction + 1), na.rm=TRUE))
+
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_histogram(
+    data = sequencing_plate,
+    mapping = ggplot2::aes(
+      x = well_gene_fraction,
+      y = log10(..count.. + 1)),
+    bins = 120) +
+  ggplot2::scale_x_continuous(
+    "Gene in Well Read Fraction",
+    breaks = c(0, .25, .5, 0.75, 1),
+    labels = c("0%", "25%", "50%", "75%", "100%")) +
+  ggplot2::scale_y_continuous(
+    "Gene x Well Count",
+    breaks = log10(c(0, 1, 10, 100, 1000, 10000) + 1),
+    labels = c("0", "1", "10", "100", "1k", "10k"))
+
+plot <- patchwork::wrap_plots(plot1, plot2)
+
+
+ggplot2::ggsave(
+  filename = "product/well_read_fraction_estimation_20250613.pdf",
+  plot = plot,
+  width = 6,
+  height = 5)
+```
+
+```{r plot-well-gene-fraction-by-n-genes}
+
+scales <- list(
+  ggplot2::scale_x_continuous(
+    "N genes in well",
+    limits = c(0, 18)),
+  ggplot2::scale_y_continuous(
+    "Percent of Reads for Gene in Well",
+    breaks = log10(c(0, 0.01, 0.02, .1, 0.2, 1.0)*500 + 0.99),
+    labels = paste0(c(0, 0.01, 0.02, .1, 0.2, 1.0)*100, "%")),
+  ggplot2::scale_color_manual(
+    "Noise Threshold",
+    values = c("good" = "black", "noise" = "darkgray")))
+
+gene_in_well_threshold <- 2/100
+plot_data <- data_gene |>
+  dplyr::mutate(
+    gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column) |>
+      dplyr::mutate(well = dplyr::row_number()),
+    by = c("plate", "row", "column"))
+
+plot_data <- plot_data |>
+  dplyr::left_join(
+    plot_data |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(n_genes = sum(gene_in_well)),
+    by = "well")
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::ggtitle("Well Fraction: Screen") +
+  ggplot2::theme_bw() +
+  ggrastr::geom_jitter_rast(
+    data = plot_data |>
+      dplyr::mutate(
+        is_noise = ifelse(
+          well_gene_fraction < gene_in_well_threshold,
+          "noise",
+          "good")),
+    mapping = ggplot2::aes(
+      y = log10(well_gene_fraction*500 + 0.99),
+      x = n_genes,
+      color = is_noise),
+    width = 0.3,
+    height = 0,
+    alpha = 0.5,
+    size = 0.3,
+    shape = 16) +
+  scales
+
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 0.6,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 5,
+  well_abundance_factor_var = 1)
+
+sequencing_plate <- simulate_sequencing_plate(
+  spot_plate,
+  sequencing_n_cells_per_well_lambda = 1000,
+  sequencing_n_cells_per_well_nu = 1,
+  pcr_factor_mu = 2,
+  pcr_factor_var = 1,
+  n_reads_total = round(128318/1536))
+
+sequencing_plate <- sequencing_plate |>
+  dplyr::group_by(well) |>
+  dplyr::mutate(
+    well_gene_fraction = n_reads_per_gene_per_well / sum(n_reads_per_gene_per_well))
+
+plot_data <- sequencing_plate |>
+  dplyr::left_join(
+    spot_plate |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(n_genes = sum(gene_in_well)),
+    by = "well")
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::ggtitle("Well Fraction: Simulated") +
+  ggplot2::theme_bw() +
+  ggrastr::geom_jitter_rast(
+    data = plot_data |>
+      dplyr::mutate(
+        is_noise = ifelse(
+          well_gene_fraction < gene_in_well_threshold,
+          "noise",
+          "good")),
+    mapping = ggplot2::aes(
+      y = log10(well_gene_fraction*500 + 0.99),
+      x = n_genes,
+      color = is_noise),
+    width = 0.3,
+    height = 0.01,
+    alpha = 0.5,
+    size = 0.3,
+    shape = 16) +
+  scales
+
+plot <- patchwork::wrap_plots(
+  plot1, plot2,
+  ncol = 1)
+
+ggplot2::ggsave(
+  filename = "product/well_read_fraction_by_n_genes_in_well_20250616.pdf",
+  width = 14,
+  height = 11,
+  useDingbats = FALSE)
+
+
+```
+
+
+```{r plot-read-abundance-by-n-genes}
+
+scales <- list(
+  ggplot2::scale_x_continuous(
+    "N genes in well"),
+  ggplot2::scale_y_continuous(
+    "Read Count",
+    breaks = c(0, 1, 2, 3, 4, 5),
+    labels = paste0("1e", c(0, 1, 2, 3, 4, 5))),
+  ggplot2::scale_color_manual(
+    "Noise Threshold",
+    values = c("good" = "black", "noise" = "darkgray")))
+
+gene_in_well_threshold <- 3/100
+plot_data <- data_gene |>
+  dplyr::mutate(
+    gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column) |>
+      dplyr::mutate(well = dplyr::row_number()),
+    by = c("plate", "row", "column"))
+
+plot_data <- plot_data |>
+  dplyr::left_join(
+    plot_data |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(n_genes = sum(gene_in_well)),
+    by = "well")
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::ggtitle("Well Fraction: Screen") +
+  ggplot2::theme_bw() +
+  ggplot2::geom_jitter(
+    data = plot_data |>
+      dplyr::mutate(
+        is_noise = ifelse(
+          well_gene_fraction < gene_in_well_threshold,
+          "noise",
+          "good")),
+    mapping = ggplot2::aes(
+      y = log10(read_count + 1),
+      x = n_genes,
+      color = is_noise),
+    width = 0.3,
+    height = 0,
+    alpha = 0.5,
+    size = 0.3,
+    shape = 16) +
+  scales
+
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 0.6,
+  gene_hit_rate = 0.05)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 5,
+  well_abundance_factor_var = 1)
+
+sequencing_plate <- simulate_sequencing_plate(
+  spot_plate,
+  sequencing_n_cells_per_well_lambda = 100000,
+  sequencing_n_cells_per_well_nu = 1.1,
+  pcr_factor_mu = 0.1,
+  pcr_factor_var = 0.01,
+  n_reads_total = round(128318/1536))
+
+sequencing_plate <- sequencing_plate |>
+  dplyr::group_by(well) |>
+  dplyr::mutate(
+    well_gene_fraction = n_reads_per_gene_per_well / sum(n_reads_per_gene_per_well))
+
+plot_data <- sequencing_plate |>
+  dplyr::left_join(
+    spot_plate |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(n_genes = sum(gene_in_well)),
+    by = "well")
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::ggtitle("Well Fraction: Simulated") +
+  ggplot2::theme_bw() +
+  ggplot2::geom_jitter(
+    data = plot_data |>
+      dplyr::mutate(
+        is_noise = ifelse(
+          well_gene_fraction < gene_in_well_threshold,
+          "noise",
+          "good")),
+    mapping = ggplot2::aes(
+      y = log10(n_reads_per_gene_per_well + 1),
+      x = n_genes,
+      color = is_noise),
+    width = 0.3,
+    height = 0.01,
+    alpha = 0.5,
+    size = 0.3,
+    shape = 16) +
+  scales
+
+plot <- patchwork::wrap_plots(
+  plot1, plot2,
+  ncol = 1)
+
+ggplot2::ggsave(
+  filename = "product/well_read_abundance_by_n_genes_in_well_20250610.pdf",
+  width = 14,
+  height = 11,
+  useDingbats = FALSE)
+
+
+```
+
+

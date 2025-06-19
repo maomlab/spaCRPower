@@ -1,0 +1,33 @@
+---
+title: "02_simulate_screen"
+output: html_document
+---
+
+```{r simulate_screen}
+
+data <- spaCRPower::simulate_screen(
+  n_genes_in_library = 452,                   # screen design 
+  gene_abundance_alpha = 0.6,                 # fitting parameters
+  gene_hit_rate = 0.05,                       # unknown/guess
+  n_wells_per_screen = 1536,                  # screen design
+  well_abundance_factor_mu = 5,               # fitting parameters
+  well_abundance_factor_var = 1,              # fitting parameters
+  imaging_n_cells_per_well_lambda = 43200/5,  # n cells per well/number genes per well
+  imaging_n_cells_per_well_nu = 1,            # poisson sampling
+  class_pos_mu = 0.95,                        # fit to reproduce positivity rates in wells
+  class_pos_var = .01,                        # fit to reproduce positivity rates in wells
+  class_neg_mu = 0.5,                         # fit to reproduce positivity rates in wells
+  class_neg_var = .01,                        # fit to reproduce positivity rates in wells
+  sequencing_n_cells_per_well_lambda = 1000,  # 1000 cells in sequencing plate for each gene in the well
+  sequencing_n_cells_per_well_nu = 1,         # no under or over dispersion => Poisson
+  pcr_factor_mu = 2,                          # Mean of lrnorm is exp(mu + 1/var) = ~12.1
+  pcr_factor_var = 1,
+  n_reads_total = round(128318/1536))         # geometric mean of well reads
+```
+
+```{r plot-summary-plots}
+
+data |> plot_well_gene_reads_heatmap()
+data |> plot_positivity_rate_by_well()
+
+```

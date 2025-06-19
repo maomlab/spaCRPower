@@ -1,0 +1,125 @@
+---
+title: "T. Gondii Screen"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{T. Gondii Screen}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(spaCRPower)
+```
+
+```{r load-data}
+
+########################################### 
+# second version of the data Einar shared #
+###########################################
+
+# columns: grna, plate, grna_well_count, gene_well_count
+grna_well <- readr::read_csv(
+  file = paste0(
+    system.file("extdata", package = "spaCRPower"), "/",
+    "Tgondii_screen/grna_well.csv"),
+  show_col_types = FALSE) |>
+  dplyr::mutate(
+    plate = plate |> stringr::str_replace("plate", "") |> as.integer())
+
+# columns: well, plate, row, column, positive, negative, cell_count
+maxvit_well_scores <- readr::read_csv(
+  file = paste0(
+    system.file("extdata", package = "spaCRPower"), "/",
+    "Tgondii_screen/maxvit_well_scores"),
+  show_col_types = FALSE) |>
+  dplyr::select(-`...1`) |>
+  dplyr::rename(
+    maxvit_positive = positive_per_well,
+    maxvit_negative = negative_per_well,
+    well_cell_count = cell_per_well) |>
+  tidyr::separate_wider_delim(
+    cols = prc,
+    names = c("plate", "row", "column"),
+    delim = "_") |>
+  dplyr::mutate(
+    plate = plate |> stringr::str_replace("pplate", "") |> as.integer(),
+    row = row |> stringr::str_replace("r", "") |> as.integer(),
+    column = column |> stringr::str_replace("c", "") |> as.integer()) |>
+  dplyr::arrange(plate, row, column)
+
+# columns: prc, grna, fraction, gene, pred, cell_count, log_pred
+regression_maxvit <- readr::read_csv(
+  file = paste0(
+    system.file("extdata", package = "spaCRPower"), "/",
+    "Tgondii_screen/regression_data_MaxViT.csv"),
+  show_col_types = FALSE)
+
+read_plate <- function(plate_index) {
+  plate1_unique_combinations <- readr::read_csv(
+    file = paste0(
+      system.file("extdata", package = "spaCRPower"), "/",
+      "Tgondii_screen/plate", plate_index, "_unique_combinations.csv"),
+    show_col_types = FALSE) |>
+    dplyr::transmute(
+      plate = plate_index,
+      row = row_name |> stringr::str_replace("r", "") |> as.integer(),
+      column = column_name |> stringr::str_replace("c", "") |> as.integer(),
+      well_type = dplyr::case_when(
+        column == 1 ~ "NC",
+        column == 2 ~ "PC",
+        column == 3 ~ "Sweep",
+        TRUE ~ "Screen"),
+      gene = grna_name |> stringr::str_extract("TGGT1_[^_]+"),
+      grna = grna_name,
+      read_count = count)
+      
+}
+
+data_grna <- dplyr::bind_rows(
+  read_plate(1),
+  read_plate(2),
+  read_plate(3),
+  read_plate(4))
+
+data_grna <- data_grna |>
+  dplyr::left_join(
+    data_grna |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column),
+    by = c("plate", "row", "column"))
+
+data_gene <- data_grna |>
+  dplyr::transmute(
+    plate, row, column,
+    gene = grna |> stringr::str_extract("TGGT1_[^_]+"),
+    read_count) |>
+  dplyr::group_by(plate, row, column, gene) |>
+  dplyr::summarize(
+    read_count = sum(read_count),
+    .groups = "drop")
+
+data_gene <- data_gene |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::group_by(plate, row, column) |>
+      dplyr::reframe(
+        gene,
+        well_gene_fraction = read_count / sum(read_count)),
+    by = c("plate", "row", "column", "gene"))
+
+
+data_gene <- data_gene |>
+  dplyr::left_join(
+    maxvit_well_scores,
+    by = c("plate", "row", "column"))
+
+save(data_gene, file = "intermediate_data/data_gene.Rdata")
+
+```

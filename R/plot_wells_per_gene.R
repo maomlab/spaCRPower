@@ -57,7 +57,7 @@ plot_wells_per_gene <- function(data) {
       data = plot_data_mean,
       mapping = ggplot2::aes(
         x = mean_n_wells,
-        label = round(mean_n_wells),
+        label = signif(mean_n_wells, digits = 2),
         y = 1.1 * max_height),
       direction = "x",
       nudge_x = 0.1) +

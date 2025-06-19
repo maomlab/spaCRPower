@@ -1,0 +1,52 @@
+---
+title: "02.2_plot_plate_maps"
+output: html_document
+---
+
+```{r load-data}
+
+load("intermediate_data/data_gene.Rdata")
+```
+
+
+```{r plate-map}
+
+plot_data <- data_gene |>
+  dplyr::group_by(plate, row, column) |>
+  dplyr::summarize(
+    positivity_rate =
+      sum(maxvit_positive) / sum(maxvit_positive + maxvit_negative),
+    plate_label = paste0("Plate ", plate),
+    row_label = paste0("R", row),
+    column_label = paste0("C", column),
+    .groups = "drop")
+
+
+ggplot2::ggplot() +
+  ggplot2::theme_bw() +
+  ggplot2::geom_tile(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      x = column,
+      y = row,
+      fill = positivity_rate)) +
+  ggplot2::facet_wrap(facets = dplyr::vars(plate_label)) +
+  ggplot2::scale_x_continuous(
+    "Column",
+    labels = 1:24, breaks = 1:24,
+    expand = c(0, 0)) +
+  ggplot2::scale_y_continuous(
+    "Row",
+    labels = 1:16, breaks = 1:16,
+    expand = c(0, 0)) +
+  ggplot2::scale_fill_continuous("Positivity Rate") +
+  ggplot2::theme(legend.position = "bottom")
+
+
+ggplot2::ggsave(
+  filename = "product/plate_map_positivity_rate_20250618.pdf",
+  width = 16,
+  height = 12)
+
+
+```
