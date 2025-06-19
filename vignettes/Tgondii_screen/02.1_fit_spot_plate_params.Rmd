@@ -106,6 +106,7 @@ ggplot2::ggsave(
 ```{r gene-in-well-abundance}
 gene_in_well_threshold <- 2/100
 plot_data <- data_gene |>
+  dplyr::filter(well_type == "Screen") |>
   dplyr::mutate(
     gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
   dplyr::left_join(
@@ -131,13 +132,13 @@ patchwork::wrap_plots(plot1, plot2)
 
 gene_library <- simulate_library(
   n_genes_in_library = 452,
-  gene_abundance_alpha = 0.6,
+  gene_abundance_alpha = 0.7,
   gene_hit_rate = 0.05)
 
 spot_plate <- simulate_spot_plate(
   gene_library,
   n_wells_per_screen = 1536,
-  well_abundance_factor_mu = 4,
+  well_abundance_factor_mu = 4.6,
   well_abundance_factor_var = 1)
 
 plot3 <- plot_genes_per_well(spot_plate) + genes_per_well_scales
@@ -146,7 +147,7 @@ plot4 <- plot_wells_per_gene(spot_plate) + wells_per_gene_scales
 plot <- patchwork::wrap_plots(plot1, plot2, plot3, plot4)
 
 ggplot2::ggsave(
-  filename = "product/gene_in_well_estimation_20250608.pdf",
+  filename = "product/gene_in_well_estimation_20250618.pdf",
   width = 7,
   height = 7,
   useDingbats = FALSE)
@@ -157,6 +158,7 @@ ggplot2::ggsave(
 
 gene_in_well_threshold <- 2/100
 plot_data <- data_gene |>
+  dplyr::filter(well_type == "Screen") |>
   dplyr::mutate(
     gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
   dplyr::left_join(
@@ -327,7 +329,7 @@ plot2 <- ggplot2::ggplot() +
 plot <- patchwork::wrap_plots(plot1, plot2)
 
 ggplot2::ggsave(
-  filename = "product/summary_stats_sweep_20250609.pdf",
+  filename = "product/summary_stats_sweep_20250618.pdf",
   width = 7,
   height = 4,
   useDingbats = FALSE)

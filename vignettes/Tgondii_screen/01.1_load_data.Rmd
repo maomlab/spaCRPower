@@ -75,7 +75,7 @@ read_plate <- function(plate_index) {
         column == 1 ~ "NC",
         column == 2 ~ "PC",
         column == 3 ~ "Sweep",
-        TRUE ~ "Screen"),
+        TRUE ~ "Screen") |> factor(),
       gene = grna_name |> stringr::str_extract("TGGT1_[^_]+"),
       grna = grna_name,
       read_count = count)
@@ -97,10 +97,10 @@ data_grna <- data_grna |>
 
 data_gene <- data_grna |>
   dplyr::transmute(
-    plate, row, column,
+    plate, row, column, well_type,
     gene = grna |> stringr::str_extract("TGGT1_[^_]+"),
     read_count) |>
-  dplyr::group_by(plate, row, column, gene) |>
+  dplyr::group_by(plate, row, column, well_type, gene) |>
   dplyr::summarize(
     read_count = sum(read_count),
     .groups = "drop")
