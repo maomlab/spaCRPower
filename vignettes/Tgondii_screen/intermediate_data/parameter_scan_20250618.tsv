@@ -1,6 +1,0 @@
-n_genes_in_library	gene_abundance_alpha	gene_hit_rate	n_wells_per_screen	well_abundance_factor_mu	well_abundance_factor_var	imaging_n_cells_per_well_lambda	imaging_n_cells_per_well_nu	class_pos_mu	class_pos_var	class_neg_mu	class_neg_var	sequencing_n_cells_per_well_lambda	sequencing_n_cells_per_well_nu	pcr_factor_mu	pcr_factor_var	n_reads_total	param_index	model_ap	model_auroc
-452	0.6	0.05	100	4.6	1	8640	1	0.8	0.1	0.12	0.01	1000	1	2	1	84	1	0.9522445830083098	0.5623539719626167
-452	0.6	0.05	200	4.6	1	8640	1	0.8	0.1	0.12	0.01	1000	1	2	1	84	2	0.9719398047777661	0.6298611111111113
-452	0.6	0.05	300	4.6	1	8640	1	0.8	0.1	0.12	0.01	1000	1	2	1	84	3	0.9566081096411712	0.5720843091334895
-452	0.6	0.05	400	4.6	1	8640	1	0.8	0.1	0.12	0.01	1000	1	2	1	84	4	0.9566367713769502	0.7017972083604544
-452	0.6	0.05	500	4.6	1	8640	1	0.8	0.1	0.12	0.01	1000	1	2	1	84	5	0.9832110574834515	0.7414807302231238

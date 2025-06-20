@@ -49,6 +49,4 @@ fit multiple times.
   model_evaluation <- evaluate_model_fit(data, model_estimate)
 }
 
-
-
 }

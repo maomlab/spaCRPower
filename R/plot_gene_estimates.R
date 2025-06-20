@@ -29,15 +29,8 @@
 plot_model_estimate <- function(model_estimate) {
 
   plot_data <- model_estimate |>
-    dplyr::filter(variable |> stringr::str_detect("count")) |>
-    dplyr::transmute(
-      variable =
-        paste0("Gene ", variable |> stringr::str_extract("[0-9]+$")) |>
-        forcats::fct_inorder(),
-      mean,
-      q5,
-      q95)
-
+    dplyr::arrange(dplyr::desc(mean)) |>
+    dplyr::mutate(variable_label = variable_label |> forcats::fct_inorder())
 
   ggplot2::ggplot() +
     ggplot2::theme_bw() +
@@ -47,28 +40,28 @@ plot_model_estimate <- function(model_estimate) {
       data = plot_data,
       mapping = ggplot2::aes(
         x = q5,
-        y = variable,
+        y = variable_label,
         xend = q95,
-        yend = variable),
+        yend = variable_label),
       color = "grey50",
       linewidth = 1.5) +
     ggplot2::geom_point(
       data = plot_data,
       mapping = ggplot2::aes(
         x = q5,
-        y = variable),
+        y = variable_label),
       color = "grey20") +
     ggplot2::geom_point(
       data = plot_data,
       mapping = ggplot2::aes(
         x = q95,
-        y = variable),
+        y = variable_label),
       color = "grey20") +
     ggplot2::geom_point(
       data = plot_data,
       mapping = ggplot2::aes(
         x = mean,
-        y = variable),
+        y = variable_label),
       color = "orange",
-      size = 1)
+      size = 1)  
 }

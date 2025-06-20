@@ -1,0 +1,49 @@
+---
+title: "03.1_simulate_screen"
+output: html_document
+---
+
+```{r simulate_screen}
+
+data <- spaCRPower::simulate_screen(
+  n_genes_in_library = 452,                   # screen design 
+  gene_abundance_alpha = 0.6,                 # fitting parameters
+  gene_hit_rate = 0.025,                      # unknown/guess
+  n_wells_per_screen = 1536,                  # screen design
+  well_abundance_factor_mu = 4.6,             # fitting parameters
+  well_abundance_factor_var = 1,              # fitting parameters
+  imaging_n_cells_per_well_lambda = 25,       # n cells per well/number genes per well
+  imaging_n_cells_per_well_nu = 1,            # poisson sampling
+  class_pos_mu = 0.80,                        # fit to reproduce positivity rates in wells
+  class_pos_var = .1,                         # fit to reproduce positivity rates in wells
+  class_neg_mu = 0.12,                        # fit to reproduce positivity rates in wells
+  class_neg_var = .01,                        # fit to reproduce positivity rates in wells
+  sequencing_n_cells_per_well_lambda = 1000,  # 1000 cells in sequencing plate for each gene in the well
+  sequencing_n_cells_per_well_nu = 1,         # no under or over dispersion => Poisson
+  pcr_factor_mu = 2,                          # Mean of lrnorm is exp(mu + 1/var) = ~12.1
+  pcr_factor_var = 1,
+  n_reads_total = 128318)                     # total reads in the screen
+
+```
+
+```{r fit-model}
+
+model_data <- spaCRPower::prepare_model_data(data)
+model <- spaCRPower::compile_model(model_data)
+model_fit <- spaCRPower::fit_model(model_data, model)
+model_estimate <- spaCRPower::gather_model_estimate(model_fit)
+model_evaluation <- spaCRPower::evaluate_model_fit(data, model_estimate)
+
+```
+
+```{r plot-model-estimates}
+
+plot <- model_estimate |> spaCRPower::plot_model_estimate()
+
+ggplot2::ggsave(
+  filename = "product/model_estimate_20250620.pdf",
+  plot = plot,
+  width = 7,
+  height = 15,
+  useDingbats = FALSE)
+```

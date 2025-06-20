@@ -1,0 +1,143 @@
+---
+title: "03.2_scan_parameters"
+output: html_document
+---
+```{r load-packages}
+library(future)
+library(future.batchtools)
+```
+
+```{r local-scan}
+
+scan_params <- spaCRPower::scan_parameters(
+  n_genes_in_library = 452,                   # screen design 
+  gene_abundance_alpha = 0.6,                 # fitting parameters
+  gene_hit_rate = 0.025,                      # fit to image plate distribution
+  n_wells_per_screen = c(100, 200, 300, 400, 500),
+  well_abundance_factor_mu = 4.6,             # fitting parameters
+  well_abundance_factor_var = 1,              # fitting parameters
+  imaging_n_cells_per_well_lambda = 25,       # n cells per well/number genes per well
+  imaging_n_cells_per_well_nu = 1,            # poisson sampling
+  class_pos_mu = 0.80,                        # fit to reproduce positivity rates in wells
+  class_pos_var = .1,                         # fit to reproduce positivity rates in wells
+  class_neg_mu = 0.12,                        # fit to reproduce positivity rates in wells
+  class_neg_var = .01,                        # fit to reproduce positivity rates in wells
+  sequencing_n_cells_per_well_lambda = 1000,  # 1000 cells in sequencing plate for each gene in the well
+  sequencing_n_cells_per_well_nu = 1,         # no under or over dispersion => Poisson
+  pcr_factor_mu = 2,                          # Mean of lrnorm is exp(mu + 1/var) = ~12.1
+  pcr_factor_var = 1,
+  n_reads_total = 128318,                     # geometric mean of well reads
+  progress_file = "intermediate_data/parameter_scan_20250619.tsv",
+  verbose = TRUE)         
+```
+
+
+```{r prepare-future-plan}
+# submitting jobs will use the SLURM queue
+future.batchtools::batchtools_slurm(
+    template = system.file(
+        "hpc",
+        "batchtools.greatlakes.tmpl",
+        package = "spaCRPower"),
+    resources = list(
+        ncpus = 4,
+        memory = 5000,
+        walltime = 1000,
+        account = "maom99",
+        partition = "standard")) |>
+    future::plan()
+```
+
+
+```{r parameter_scan}
+
+scan_param_jobs <- spaCRPower::scan_parameters_future(
+  n_genes_in_library = 452,                   # screen design 
+  gene_abundance_alpha = 0.6,                 # fitting parameters
+  gene_hit_rate = 0.025,                      # fit to imaging plate data
+  n_wells_per_screen = seq(from=3000, 5000, by = 20),
+  well_abundance_factor_mu = 4.6,               # fitting parameters
+  well_abundance_factor_var = 1,              # fitting parameters
+  imaging_n_cells_per_well_lambda = 25,       # n cells per well/number genes per well
+  imaging_n_cells_per_well_nu = 1,            # poisson sampling
+  class_pos_mu = 0.80,                        # fit to reproduce positivity rates in wells
+  class_pos_var = .1,                         # fit to reproduce positivity rates in wells
+  class_neg_mu = 0.12,                        # fit to reproduce positivity rates in wells
+  class_neg_var = .01,                        # fit to reproduce positivity rates in wells
+  sequencing_n_cells_per_well_lambda = 1000,  # 1000 cells in sequencing plate for each gene in the well
+  sequencing_n_cells_per_well_nu = 1,         # no under or over dispersion => Poisson
+  pcr_factor_mu = 2,                          # Mean of lrnorm is exp(mu + 1/var) = ~12.1
+  pcr_factor_var = 1,
+  n_reads_total = 128318,                     # geometric mean of well reads
+  progress_file = "intermediate_data/scan_params_w4.6/parameter_scan_20250620.tsv",
+  verbose = TRUE)
+
+# wait for it to finish
+
+param_scan <- scan_param_jobs$job |>
+    purrr::map_dfr(function(job) {
+         job |> future::value()
+    })
+
+```
+
+```{r plot-param-scan}
+
+param_scan <- data.frame(
+   path = list.files(
+      "intermediate_data",
+      pattern = "parameter_scan*",
+      recursive = TRUE,
+      full.names = TRUE)) |>
+   dplyr::rowwise() |>
+   dplyr::do({
+     path <- .$path
+     cat("reading file: ", path, "\n", sep = "")
+     readr::read_tsv(path, show_col_types = FALSE)
+   })
+
+
+ggplot2::ggplot(data = param_scan) +
+  ggplot2::theme_bw() +
+  ggplot2::geom_hline(yintercept = 0.5) +
+  ggplot2::geom_smooth(
+    mapping = ggplot2::aes(
+      x = n_wells_per_screen,
+      y = model_auroc,
+      group = log10(well_abundance_factor_mu),
+      color = log10(well_abundance_factor_mu)),
+    formula = y ~ x,
+    method = "loess") +
+  ggplot2::geom_point(
+    mapping = ggplot2::aes(
+      x = n_wells_per_screen,
+      y = model_auroc,
+      group = log10(well_abundance_factor_mu),
+      color = log10(well_abundance_factor_mu)),
+    size = 0.7,
+    alpha = 0.8,
+    shape = 16) +
+  ggplot2::scale_x_continuous(
+    "Number of Wells in Screen") +
+  ggplot2::scale_y_continuous(
+    "Hit Identification AUROC",
+    limits = c(0.4, 1),
+    breaks = c(0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
+    labels = c(0.5, 0.6, 0.7, 0.8, 0.9, 1.0)) +
+  ggplot2::scale_color_continuous(
+    "Genes Per Well",
+    breaks = log10(c(1, 4.6, 20, 50)),
+    labels = c("1", "4.6", "20", "50")) +
+  ggplot2::theme(legend.position = "bottom")
+    
+
+ggplot2::ggsave(
+  filename = "product/parameter_scan_20250619.pdf",
+  width = 5,
+  height = 4,
+  useDingbats = FALSE)
+
+
+
+```
+

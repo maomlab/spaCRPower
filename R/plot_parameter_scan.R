@@ -36,22 +36,6 @@ plot_parameter_scan <- function(
     label_color = "N Genes Per Well",
     title = "Parameter Scan") {
 
-  # ggplot2::ggplot() +
-  #   ggplot2::theme_bw() +
-  #   ggplot2::ggtitle(title) +
-  #   ggplot2::geom_line(
-  #     data = parameter_scan,
-  #     mapping = ggplot2::aes(
-  #       x = .data[[param_x]],
-  #       color = .data[[param_color]],
-  #       group = .data[[param_color]],
-  #       y = .data[[param_y]]),
-  #     size = 1.3) +
-  #   ggplot2::scale_x_continuous(label_x) +
-  #   ggplot2::scale_y_continuous(label_y) +
-  #   ggplot2::scale_color_continuous(label_color) +
-  #   ggplot2::theme(legend.position = "bottom")
-
   ggplot2::ggplot() +
     ggplot2::theme_bw() +
     ggplot2::ggtitle(title) +

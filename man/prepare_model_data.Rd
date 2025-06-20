@@ -8,16 +8,17 @@ prepare_model_data(data)
 }
 \arguments{
 \item{data}{data.frame with columns [\code{well}, \code{gene}, \code{positive},
-\code{n_cells_per_gene_per_well}]}
+\code{n_reads_per_gene_per_well}]}
 }
 \value{
-\code{tibble::tibble} with columns [\code{well}, \code{Npositive}, \code{log10counts}]
-where the types are \code{factor}, \code{numeric}, \code{matrix} and the matrix has
-\code{1} row and \code{n_gene} columns.
+\code{tibble::tibble} with columns [\code{well}, \code{Npositive},
+\code{log10expression}] where the types are \code{factor}, \code{numeric}, \code{matrix} and
+the matrix has \code{1} row and \code{n_gene} columns.
 }
 \description{
 Given a dataset, compute for each (well, gene) pair, the number of positive
-and log10 total cell count.
+and log10 expression, where expression is the the fraction of reads for that
+gene in the well + .0001
 }
 \examples{
 \dontrun{

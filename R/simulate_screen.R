@@ -352,13 +352,15 @@ simulate_sequencing_plate <- function(
       well_data <- .
       n_cells_in_well <- sum(well_data$sequencing_n_cells_per_gene_per_well)
 
+      n_reads_per_well <- round(n_reads_total / nrow(well_data))
+      
       if (sum(well_data$sequencing_n_cells_per_gene_per_well) > 0) {
         n_barcodes_per_genes_per_well <- round(
           well_data$sequencing_n_cells_per_gene_per_well * well_data$pcr_factor)
         n_reads_per_gene_per_well <- extraDistr::rmvhyper(
           nn = 1,
           n = n_barcodes_per_genes_per_well,
-          k = min(n_cells_in_well * well_data$pcr_factor[1], n_reads_total)) |>
+          k = min(n_cells_in_well * well_data$pcr_factor[1], n_reads_per_well)) |>
           as.numeric()
       } else {
         n_reads_per_gene_per_well <- rep(0, length.out = nrow(well_data))
