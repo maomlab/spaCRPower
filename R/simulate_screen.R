@@ -252,13 +252,14 @@ simulate_imaging_plate <- function(
   imaging_plate <- spot_plate |>
     dplyr::left_join(well_summary, by = "well")
 
+  lambda <- imaging_n_cells_per_well_lambda / spot_plate$well_abundance_factor_mu[1]
   imaging_plate <- imaging_plate |>
     dplyr::group_by(well) |>
     dplyr::mutate(
       imaging_n_cells_per_gene_per_well = gene_in_well *
         rpois(
           n = dplyr::n(),
-          lambda = imaging_n_cells_per_well_lambda / sum(gene_in_well))) |>
+          lambda = lambda)) |>
     dplyr::ungroup()
 
   imaging_plate |>
@@ -342,7 +343,7 @@ simulate_sequencing_plate <- function(
       n_cells_in_well <- sum(well_data$sequencing_n_cells_per_gene_per_well)
 
       n_reads_per_well <- round(n_reads_total / nrow(well_data))
-      
+
       if (sum(well_data$sequencing_n_cells_per_gene_per_well) > 0) {
         n_barcodes_per_genes_per_well <- round(
           well_data$sequencing_n_cells_per_gene_per_well * well_data$pcr_factor)

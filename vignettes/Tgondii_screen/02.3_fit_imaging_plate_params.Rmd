@@ -324,7 +324,7 @@ spot_plate <- simulate_spot_plate(
 
 imaging_plate <- simulate_imaging_plate(
   spot_plate,
-  imaging_n_cells_per_well_lambda = 25,
+  imaging_n_cells_per_well_lambda = 123,
   imaging_n_cells_per_well_nu = 1,
   class_pos_mu = pos_rate,
   class_pos_var = .1,
@@ -373,7 +373,7 @@ plot2 <- ggplot2::ggplot() +
 plot <- patchwork::wrap_plots(plot1, plot2)
 
 ggplot2::ggsave(
-  filename = "product/fraction_positive_by_well_20250618.pdf",
+  filename = "product/fraction_positive_by_well_20250621.pdf",
   width = 7,
   height = 4,
   useDingbats = FALSE)
