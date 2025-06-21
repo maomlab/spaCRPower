@@ -52,12 +52,13 @@ future.batchtools::batchtools_slurm(
 
 ```{r parameter_scan}
 
+well_abundance_factor_mu <- 20
 scan_param_jobs <- spaCRPower::scan_parameters_future(
   n_genes_in_library = 452,                   # screen design 
   gene_abundance_alpha = 0.6,                 # fitting parameters
   gene_hit_rate = 0.025,                      # fit to imaging plate data
   n_wells_per_screen = seq(from=10, to=5010, by = 100),
-  well_abundance_factor_mu = 4.6,               # fitting parameters
+  well_abundance_factor_mu = well_abundance_factor_mu, # fitting parameters
   well_abundance_factor_var = 1,              # fitting parameters
   imaging_n_cells_per_well_lambda = 123,      # n cells per well
   imaging_n_cells_per_well_nu = 1,            # poisson sampling
@@ -70,7 +71,7 @@ scan_param_jobs <- spaCRPower::scan_parameters_future(
   pcr_factor_mu = 2,                          # Mean of lrnorm is exp(mu + 1/var) = ~12.1
   pcr_factor_var = 1,
   n_reads_total = 128318,                     # geometric mean of well reads
-  progress_file = "intermediate_data/scan_params_w4.6/parameter_scan_20250621.tsv",
+  progress_file = paste0("intermediate_data/scan_params_w", well_abundance_factor_mu, "/parameter_scan_20250621.tsv"),
   verbose = TRUE)
 
 # wait for it to finish
