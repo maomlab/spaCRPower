@@ -250,27 +250,16 @@ simulate_imaging_plate <- function(
       .groups = "drop")
 
   imaging_plate <- spot_plate |>
-    dplyr::left_join(well_summary,by = "well")
+    dplyr::left_join(well_summary, by = "well")
 
-  # if the dispersion parameter is 1, then this is the poisson distribution
-  # so sample from rpois, because it is fast, and sample from the
-  # COM-Poisson distribution otherwise
-  if (imaging_n_cells_per_well_nu == 1) {
-    imaging_plate <- imaging_plate |>
-      dplyr::mutate(
-        imaging_n_cells_per_gene_per_well = gene_in_well *
-          rpois(
-            n = dplyr::n(),
-            lambda = imaging_n_cells_per_well_lambda))
-  } else {
-    imaging_plate <- imaging_plate |>
-      dplyr::mutate(
-        imaging_n_cells_per_gene_per_well = gene_in_well *
-          COMPoissonReg::rcmp(
-            n = dplyr::n(),
-            lambda = imaging_n_cells_per_well_lambda,
-            nu = imaging_n_cells_per_well_nu))
-  }
+  imaging_plate <- imaging_plate |>
+    dplyr::group_by(well) |>
+    dplyr::mutate(
+      imaging_n_cells_per_gene_per_well = gene_in_well *
+        rpois(
+          n = dplyr::n(),
+          lambda = imaging_n_cells_per_well_lambda / sum(gene_in_well))) |>
+    dplyr::ungroup()
 
   imaging_plate |>
     dplyr::transmute(

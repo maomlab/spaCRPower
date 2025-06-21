@@ -311,17 +311,21 @@ scan_parameters_future <- function(
     cat(
       "Generating and estimating ", nrow(parameter_sets), " ",
       "different datasets\n", sep = "")
+  }
 
-    if (!is.null(progress_file)) {
-        if (dir.exists(dirname(progress_file))) {
-            cat("Creating output directory: ", dirname(progress_file), "\n", sep = "")
-            dir.create(dirname(progress_file), recursive = TRUE)
-        }
-        cat("Writing progress to ", progress_file, "_<BATCH_ID>\n", sep = "")
+  if (!is.null(progress_file)) {
+    if (!dir.exists(dirname(progress_file))) {
+      if (verbose) {
+        cat("Creating output directory: ", dirname(progress_file), "\n", sep = "")
+      }
+      dir.create(dirname(progress_file), recursive = TRUE)
+    }
+    if (verbose) {
+      cat("Writing progress to ", progress_file, "_<BATCH_ID>\n", sep = "")
     }
   }
 
-    model <- NULL
+  model <- NULL
 
   parameter_sets |>
     dplyr::rowwise() |>
