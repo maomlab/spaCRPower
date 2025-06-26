@@ -221,7 +221,7 @@ sequencing_plate <- simulate_sequencing_plate(
   sequencing_n_cells_per_well_nu = 1,
   pcr_factor_mu = 2,
   pcr_factor_var = 1,
-  n_reads_total = round(128318/1536))
+  n_reads_total = 128318)
 
 sequencing_plate <- sequencing_plate |>
   dplyr::group_by(well) |>

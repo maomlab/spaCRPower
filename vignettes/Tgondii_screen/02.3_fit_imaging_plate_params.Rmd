@@ -236,6 +236,121 @@ ggplot2::ggsave(
 
 ```
 
+```{r n-genes-in-well-vs-n-cells-in-well}
+
+
+scales <- list(
+  ggplot2::scale_x_continuous(
+    "N Genes in Well",
+    limits = c(0, 18)),
+  ggplot2::scale_y_continuous(
+    "N Cells per Gene per Well",
+    limits = c(0, log10(830 + 1)),
+    breaks = log10(c(0, 1, 3, 10, 30, 100, 300) + 1),
+    labels = c(0, 1, 3, 10, 30, 100, 300)))
+
+gene_in_well_threshold <- 2/100
+plot_data <- data_gene |>
+  dplyr::mutate(
+    gene_in_well = well_gene_fraction >= gene_in_well_threshold) |>
+  dplyr::left_join(
+    data_gene |>
+      dplyr::distinct(plate, row, column) |>
+      dplyr::arrange(plate, row, column) |>
+      dplyr::mutate(well = dplyr::row_number()),
+    by = c("plate", "row", "column"))
+
+plot_data <- plot_data |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    n_genes = sum(gene_in_well),
+    n_cells_in_well = maxvit_positive[1] + maxvit_negative[1],
+    .groups = "drop")
+
+plot1 <- ggplot2::ggplot() +
+  ggplot2::ggtitle("N Cells In Imaging Well by N Genes in Well") +
+  ggplot2::theme_bw() +
+  ggrastr::geom_jitter_rast(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      y = log10(n_cells_in_well + 1),
+      x = n_genes),
+    width = 0.3,
+    height = 0,
+    alpha = 0.5,
+    size = 0.3,
+    shape = 16) +
+  scales
+
+
+neg_rate <- .12
+pos_rate <- .80
+hit_rate <- (mean_positivity_rate_per_well - neg_rate) / (pos_rate - neg_rate)
+#cat("mean_gene_pos_rate = ", mean_per_gene_positivity_rate, "\n")
+cat("hit_rate = ", hit_rate, "\n")
+
+gene_library <- simulate_library(
+  n_genes_in_library = 452,
+  gene_abundance_alpha = 1,
+  gene_hit_rate = .025)
+
+spot_plate <- simulate_spot_plate(
+  gene_library,
+  n_wells_per_screen = 1536,
+  well_abundance_factor_mu = 4.6,
+  well_abundance_factor_var = 1)
+
+imaging_plate <- simulate_imaging_plate(
+  spot_plate,
+  imaging_n_cells_per_well_mu = 123,
+  imaging_n_cells_per_well_var = 8000,
+  class_pos_mu = pos_rate,
+  class_pos_var = .1,
+  class_neg_mu = neg_rate,
+  class_neg_var = .01)
+
+
+plot_data <- imaging_plate |>
+  dplyr::group_by(well) |>
+  dplyr::summarize(
+    n_cells = sum(imaging_n_cells_per_gene_per_well),
+    .groups = "drop") |>
+  dplyr::left_join(
+    spot_plate |>
+      dplyr::group_by(well) |>
+      dplyr::summarize(
+        n_genes = sum(gene_in_well),
+        .groups = "drop"),
+    by = "well")
+
+plot2 <- ggplot2::ggplot() +
+  ggplot2::ggtitle("Well Fraction: Simulated") +
+  ggplot2::theme_bw() +
+  ggrastr::geom_jitter_rast(
+    data = plot_data,
+    mapping = ggplot2::aes(
+      y = log10(n_cells + 1),
+      x = n_genes),
+    width = 0.3,
+    height = 0.01,
+    alpha = 0.5,
+    size = 0.3,
+    shape = 16) +
+  scales
+
+plot <- patchwork::wrap_plots(
+  plot1, plot2,
+  ncol = 1)
+
+ggplot2::ggsave(
+  filename = "product/imaging_n_cells_per_well_by_n_genes_per_well_20250625.pdf",
+  width = 8,
+  height = 6,
+  useDingbats = FALSE)
+```
+
+
+
 ```{r class-positivity-rate}
 
 scales <- list(

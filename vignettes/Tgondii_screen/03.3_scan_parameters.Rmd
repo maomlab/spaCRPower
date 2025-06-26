@@ -17,8 +17,8 @@ scan_params <- spaCRPower::scan_parameters(
   n_wells_per_screen = seq(from=10, to=5010, by = 1000),
   well_abundance_factor_mu = 4.6,             # fitting parameters
   well_abundance_factor_var = 1,              # fitting parameters
-  imaging_n_cells_per_well_lambda = 123,      # n cells per well
-  imaging_n_cells_per_well_nu = 1,            # poisson sampling
+  imaging_n_cells_per_well_mu = 123,          # n cells per well
+  imaging_n_cells_per_well_var = 8000,        # variance in negative binomial sampling
   class_pos_mu = 0.80,                        # fit to reproduce positivity rates in wells
   class_pos_var = .1,                         # fit to reproduce positivity rates in wells
   class_neg_mu = 0.12,                        # fit to reproduce positivity rates in wells
@@ -57,10 +57,10 @@ scan_param_jobs <- spaCRPower::scan_parameters_future(
   gene_abundance_alpha = 0.6,                 # fitting parameters
   gene_hit_rate = 0.025,                      # fit to imaging plate data
   n_wells_per_screen = seq(from=10, to=5010, by = 100),
-  well_abundance_factor_mu = 4.6,               # fitting parameters
+  well_abundance_factor_mu = 4.6,             # fitting parameters
   well_abundance_factor_var = 1,              # fitting parameters
-  imaging_n_cells_per_well_lambda = 123,      # n cells per well
-  imaging_n_cells_per_well_nu = 1,            # poisson sampling
+  imaging_n_cells_per_well_mu = 123,          # n cells per well
+  imaging_n_cells_per_well_var = 8000,        # variance in negative binomial sampling
   class_pos_mu = 0.80,                        # fit to reproduce positivity rates in wells
   class_pos_var = .1,                         # fit to reproduce positivity rates in wells
   class_neg_mu = 0.12,                        # fit to reproduce positivity rates in wells

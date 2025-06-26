@@ -28,7 +28,18 @@ rgamma_mean_variance <- function(n, mean, var) {
 }
 
 rnbinom_mean_variance <- function(n, mean, var) {
-  rbinom(
+  assertthat::assert_that(
+    all(0 < mean),
+    msg = paste0(
+      "The mean must be positive, but the requested mean is ", mean))
+
+  assertthat::assert_that(
+    all(var >= mean),
+    msg = paste0(
+      "The variance must be between greater than the  mean, ",
+      "but the requested variance is ", var))
+
+  rnbinom(
     n = n,
     size = mean^2 / (var - mean),
     prob = mean / var)
@@ -220,20 +231,22 @@ simulate_spot_plate <- function(
 #' @export
 simulate_imaging_plate <- function(
   spot_plate,
-  imaging_n_cells_per_well_lambda,
-  imaging_n_cells_per_well_nu,
+  imaging_n_cells_per_well_mu,
+  imaging_n_cells_per_well_var,
   class_pos_mu,
   class_pos_var,
   class_neg_mu,
   class_neg_var) {
 
   assertthat::assert_that(
-    imaging_n_cells_per_well_lambda > 0,
+    imaging_n_cells_per_well_mu > 0,
     msg = "imaging_n_cells_per_well_lambda should be positive")
 
   assertthat::assert_that(
-    imaging_n_cells_per_well_nu > 0,
-    msg = "imaging_n_cells_per_well_nu should be positive")
+    imaging_n_cells_per_well_var > imaging_n_cells_per_well_mu,
+    msg = paste0(
+      "imaging_n_cells_per_well_var should be greater than ",
+      "imaging_n_cells_per_well_mu"))
 
   assertthat::assert_that(
     class_pos_mu >= 0 && class_pos_mu <= 1,
@@ -243,31 +256,35 @@ simulate_imaging_plate <- function(
     class_neg_mu >= 0 && class_neg_mu <= 1,
     msg = "class_neg_mu should be in [0, 1]")
 
-  well_summary <- spot_plate |>
-    dplyr::group_by(well) |>
-    dplyr::summarize(
-      n_genes_in_well = sum(gene_in_well),
-      .groups = "drop")
-
   imaging_plate <- spot_plate |>
-    dplyr::left_join(well_summary, by = "well")
-
-  lambda <- imaging_n_cells_per_well_lambda / spot_plate$well_abundance_factor_mu[1]
-  imaging_plate <- imaging_plate |>
     dplyr::group_by(well) |>
-    dplyr::mutate(
-      imaging_n_cells_per_gene_per_well = gene_in_well *
-        rpois(
-          n = dplyr::n(),
-          lambda = lambda)) |>
+    dplyr::do({
+      spot_well <- .
+      if (sum(spot_well$gene_in_well) == 0){
+        spot_well |>
+          dplyr::mutate(imaging_n_cells_per_gene_per_well = 0)
+      } else {
+        spot_well |>
+          dplyr::mutate(
+            imaging_n_cells_per_gene_per_well =
+              stats::rmultinom(
+                n = 1,
+                size = rnbinom_mean_variance(
+                  n = 1,
+                  mean = imaging_n_cells_per_well_mu,
+                  var = imaging_n_cells_per_well_var),
+                prob = gene_in_well) |>
+              as.numeric())
+      }
+    }) |>
     dplyr::ungroup()
 
   imaging_plate |>
     dplyr::transmute(
       gene,
       well,
-      imaging_n_cells_per_well_lambda = imaging_n_cells_per_well_lambda,
-      imaging_n_cells_per_well_nu = imaging_n_cells_per_well_nu,
+      imaging_n_cells_per_well_mu = imaging_n_cells_per_well_mu,
+      imaging_n_cells_per_well_var = imaging_n_cells_per_well_var,
       imaging_n_cells_per_gene_per_well = imaging_n_cells_per_gene_per_well,
       class_pos_mu = class_pos_mu,
       class_pos_var = class_pos_var,
@@ -472,8 +489,8 @@ simulate_screen <- function(
   n_wells_per_screen,
   well_abundance_factor_mu,
   well_abundance_factor_var,
-  imaging_n_cells_per_well_lambda,
-  imaging_n_cells_per_well_nu,
+  imaging_n_cells_per_well_mu,
+  imaging_n_cells_per_well_var,
   class_pos_mu,
   class_pos_var,
   class_neg_mu,
@@ -499,8 +516,8 @@ simulate_screen <- function(
 
   imaging_plate <- simulate_imaging_plate(
     spot_plate,
-    imaging_n_cells_per_well_lambda = imaging_n_cells_per_well_lambda,
-    imaging_n_cells_per_well_nu = imaging_n_cells_per_well_nu,
+    imaging_n_cells_per_well_mu = imaging_n_cells_per_well_mu,
+    imaging_n_cells_per_well_var = imaging_n_cells_per_well_var,
     class_pos_mu = class_pos_mu,
     class_pos_var = class_pos_var,
     class_neg_mu = class_neg_mu,
