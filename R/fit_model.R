@@ -36,11 +36,13 @@ prepare_model_data <- function(data) {
       tibble::tibble(
         well = as.factor(well_data$well[1]),
         Npositive = sum(well_data$positive),
+        Ntotal = sum(well_data$imaging_n_cells_per_gene_per_well),
         log10expression = matrix(
           log10(well_data$n_reads_per_gene_per_well/total_reads + .0001),
           nrow = 1))
     }) |>
-    dplyr::ungroup()
+    dplyr::ungroup() |>
+    dplyr::filter(Ntotal > 0)
 }
 
 #' Compile a brms model
@@ -70,7 +72,7 @@ compile_model <- function(
     backend = "cmdstanr") {
 
   brms::brm(
-    formula = Npositive ~ 1 + log10expression,
+    formula = Npositive ~ 1 + log10expression + offset(log(Ntotal)),
     data = model_data,
     family = poisson,
     prior = brms::prior(horseshoe(df = 10), class = "b"),
